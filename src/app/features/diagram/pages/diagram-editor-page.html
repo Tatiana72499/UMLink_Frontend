@@ -1,0 +1,207 @@
+<section class="editor" aria-label="Editor de diagrama UML">
+  @if (state() === 'selection') {
+    <section class="editor-feedback">
+      <span aria-hidden="true">◇</span>
+      <h1>Selecciona un diagrama para empezar</h1>
+      <p>Abre un proyecto y elige el diagrama que quieres modelar.</p>
+      <a routerLink="/projects">Ver proyectos</a>
+    </section>
+  } @else if (state() === 'error') {
+    <section class="editor-feedback error-feedback" role="alert">
+      <span aria-hidden="true">!</span>
+      <h1>No fue posible cargar el diagrama</h1>
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="loadDiagram()">Reintentar</button>
+    </section>
+  } @else {
+    <header class="editor-toolbar">
+      <div class="document-title">
+        <span class="document-icon" aria-hidden="true">◇</span>
+        <div>
+          <p>DIAGRAMA DE CLASES</p>
+          <h1>{{ diagram()?.name || 'Cargando diagrama…' }}</h1>
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <button class="secondary-action" type="button">Exportar</button>
+        <button class="share-action" type="button">Compartir</button>
+        <button class="primary-action" type="button" (click)="openCreateDialog()">
+          Nueva clase
+        </button>
+      </div>
+    </header>
+
+    <p class="screen-message success" role="status" aria-live="polite" [hidden]="!successMessage()">
+      {{ successMessage() }}
+    </p>
+
+    <div class="editor-layout">
+      <aside class="tool-panel" aria-label="Herramientas UML">
+        <div class="panel-heading">
+          <span>Elementos UML</span
+          ><button type="button" aria-label="Buscar elementos UML">⌕</button>
+        </div>
+        <button class="tool selected" type="button" (click)="openCreateDialog()">
+          <span class="tool-symbol class-symbol" aria-hidden="true"></span
+          ><span><strong>Clase</strong><small>Entidad con atributos</small></span>
+        </button>
+        <button class="tool disabled" type="button" disabled>
+          <span class="tool-symbol interface-symbol" aria-hidden="true"></span
+          ><span><strong>Interfaz</strong><small>Próximamente</small></span>
+        </button>
+        <button class="tool" type="button" (click)="openRelationDialog()">
+          <span class="tool-symbol relation-symbol" aria-hidden="true">→</span
+          ><span><strong>Relación</strong><small>Cardinalidad y tipo UML</small></span>
+        </button>
+        <div class="quick-help">
+          <span aria-hidden="true">✦</span>
+          <div>
+            <strong>Primer paso</strong>
+            <p>Crea una clase y continúa modelando desde el lienzo.</p>
+          </div>
+        </div>
+      </aside>
+
+      <section class="canvas" #canvas aria-label="Lienzo del diagrama" (pointermove)="dragClass($event, canvas)" (pointerup)="finishDrag()" (pointercancel)="finishDrag()">
+        <div class="canvas-heading">
+          <span>{{ state() === 'loading' ? 'Cargando…' : classes().length + ' clase(s)' }}</span
+          ><span class="saved-state"><i></i> Guardado</span>
+        </div>
+        @if (state() === 'loading') {
+          <div class="canvas-loading">Cargando elementos del diagrama…</div>
+        }
+        @if (state() === 'empty') {
+          <div class="canvas-empty">
+            <span aria-hidden="true">◇</span>
+            <h2>Tu lienzo está listo</h2>
+            <p>Crea la primera clase de tu modelo UML.</p>
+            <button type="button" (click)="openCreateDialog()">Crear primera clase</button>
+          </div>
+        }
+        @if (state() === 'ready') {
+          <svg class="relation-layer" aria-hidden="true">
+            <defs>
+              <marker id="generalization" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="generalization-arrow" /></marker>
+              <marker id="dependency" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10" class="dependency-arrow" /></marker>
+              <marker id="aggregation" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto"><path d="M 0 6 L 5 1 L 10 6 L 5 11 z" class="aggregation-diamond" /></marker>
+              <marker id="composition" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto"><path d="M 0 6 L 5 1 L 10 6 L 5 11 z" class="composition-diamond" /></marker>
+            </defs>
+            @for (relation of relations(); track relation.id) {
+              @if (relationGeometry(relation); as geometry) {
+                <line [attr.x1]="geometry.x1" [attr.y1]="geometry.y1" [attr.x2]="geometry.x2" [attr.y2]="geometry.y2" [class.dashed]="relation.type === 'REALIZATION' || relation.type === 'DEPENDENCY'" [attr.marker-start]="relationMarkerStart(relation.type)" [attr.marker-end]="relationMarkerEnd(relation.type)" />
+                @if (relation.sourceCardinality) { <text [attr.x]="geometry.x1 + 8" [attr.y]="geometry.y1 - 8">{{ relation.sourceCardinality }}</text><text [attr.x]="geometry.x2 - 24" [attr.y]="geometry.y2 - 8">{{ relation.targetCardinality }}</text> }
+              }
+            }
+          </svg>
+          @for (umlClass of classes(); track umlClass.id) {
+            <article
+              class="uml-card"
+              [class.selected]="selectedClassId() === umlClass.id"
+              [style.left.px]="umlClass.positionX"
+              [style.top.px]="umlClass.positionY"
+              (click)="selectClass(umlClass)"
+              (pointerdown)="startDrag($event, umlClass, canvas)"
+            >
+              <div class="uml-stereotype">&lt;&lt;class&gt;&gt;</div>
+              <strong>{{ umlClass.name }}</strong>
+              @if (umlClass.attributes.length === 0) {
+                <p>Sin atributos todavía</p>
+              } @else {
+                <ul>
+                  @for (attribute of umlClass.attributes; track attribute.id) {
+                    <li>{{ attribute.visibility === 'PUBLIC' ? '+' : '-' }} {{ attribute.name }}: {{ attribute.dataType }}</li>
+                  }
+                </ul>
+              }
+            </article>
+          }
+        }
+        <div class="canvas-controls" aria-label="Controles de zoom">
+          <button type="button" aria-label="Alejar">−</button><span>100%</span
+          ><button type="button" aria-label="Acercar">+</button>
+        </div>
+      </section>
+
+      <aside class="properties-panel" aria-label="Propiedades y relaciones">
+        <div class="panel-heading"><span>{{ selectedClass() ? 'Clase seleccionada' : 'Resumen' }}</span></div>
+        @if (selectedClass(); as selectedClass) {
+          <p class="selection-label">CLASE UML</p>
+          <h2>{{ selectedClass.name }}</h2>
+          <p>{{ selectedClass.attributes.length }} atributo(s).</p>
+          <form class="quick-attribute-form" [formGroup]="attributeForm" (ngSubmit)="addAttribute()">
+            <label>Nuevo atributo<input formControlName="name" placeholder="nombre" /></label>
+            <label>Tipo<input formControlName="dataType" placeholder="String" /></label>
+            <label>Visibilidad<select formControlName="visibility"><option value="PRIVATE">Privado (−)</option><option value="PUBLIC">Público (+)</option><option value="PROTECTED">Protegido (#)</option></select></label>
+            @if (attributeForm.invalid && attributeForm.touched) { <p class="field-error">Completa nombre y tipo.</p> }
+            <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Agregar atributo</button>
+          </form>
+        } @else {
+          <p class="selection-label">DIAGRAMA ACTUAL</p>
+          <label>Nombre<input [value]="diagram()?.name || ''" readonly /></label>
+          <div class="property-section"><h2>Clases</h2><p>{{ classes().length }} elemento(s) en el lienzo.</p></div>
+        }
+        <div class="property-section">
+          <h2>Relaciones</h2>
+          @if (relations().length === 0) { <p>Aún no hay relaciones.</p> }
+          @for (relation of relations(); track relation.id) {
+            <p class="relation-summary">{{ relationLabel(relation.type) }}@if (relation.sourceCardinality) { · {{ relation.sourceCardinality }} → {{ relation.targetCardinality }} }</p>
+          }
+          <button class="secondary-action compact-action" type="button" (click)="openRelationDialog()">Crear relación</button>
+        </div>
+      </aside>
+    </div>
+  }
+
+  @if (isCreateDialogOpen()) {
+    <div class="dialog-backdrop" (click)="closeCreateDialog()">
+      <section
+        class="create-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-class-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p>NUEVA CLASE UML</p>
+            <h2 id="create-class-title">Define el primer elemento</h2>
+          </div>
+          <button type="button" aria-label="Cerrar" (click)="closeCreateDialog()">×</button>
+        </header>
+        <form [formGroup]="createForm" (ngSubmit)="createClass()">
+          <label
+            >Nombre de la clase<input
+              formControlName="name"
+              placeholder="Ej.: Usuario"
+              autocomplete="off"
+          /></label>
+          @if (createForm.controls.name.touched && createForm.controls.name.invalid) {
+            <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p>
+          }
+          <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+          <footer>
+            <button class="secondary-action" type="button" (click)="closeCreateDialog()">
+              Cancelar</button
+            ><button class="primary-action" type="submit" [disabled]="isSubmitting()">
+              {{ isSubmitting() ? 'Creando…' : 'Crear clase' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (isRelationDialogOpen()) {
+    <div class="dialog-backdrop" (click)="closeRelationDialog()"><section class="create-dialog" role="dialog" aria-modal="true" aria-labelledby="create-relation-title" (click)="$event.stopPropagation()">
+      <header><div><p>NUEVA RELACIÓN UML</p><h2 id="create-relation-title">Conecta dos clases</h2></div><button type="button" aria-label="Cerrar" (click)="closeRelationDialog()">×</button></header>
+      <form [formGroup]="relationForm" (ngSubmit)="createRelation()">
+        <label>Clase de origen<select formControlName="sourceClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
+        <label>Clase de destino<select formControlName="targetClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
+        <label>Tipo de relación<select formControlName="type"><option value="ASSOCIATION">Asociación</option><option value="AGGREGATION">Agregación</option><option value="COMPOSITION">Composición</option><option value="GENERALIZATION">Generalización / herencia</option><option value="REALIZATION">Realización</option><option value="DEPENDENCY">Dependencia</option></select></label>
+        @if (relationUsesCardinality()) { <div class="cardinality-fields"><label>Cardinalidad origen<select formControlName="sourceCardinality"><option value="1">1</option><option value="0..1">0..1</option><option value="*">*</option><option value="0..*">0..*</option><option value="1..*">1..*</option></select></label><label>Cardinalidad destino<select formControlName="targetCardinality"><option value="1">1</option><option value="0..1">0..1</option><option value="*">*</option><option value="0..*">0..*</option><option value="1..*">1..*</option></select></label></div> }
+        <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+        <footer><button class="secondary-action" type="button" (click)="closeRelationDialog()">Cancelar</button><button class="primary-action" type="submit" [disabled]="isSubmitting()">Crear relación</button></footer>
+      </form>
+    </section></div>
+  }
+</section>

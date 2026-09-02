@@ -1,0 +1,114 @@
+<section class="project-detail-page" aria-labelledby="project-title">
+  <a class="back-link" routerLink="/projects">← Todos los proyectos</a>
+
+  @if (state() !== 'error' && project(); as currentProject) {
+    <header class="project-header">
+      <div>
+        <p class="eyebrow">PROYECTO UML</p>
+        <h1 id="project-title">{{ currentProject.name }}</h1>
+        <p class="project-description">
+          {{ currentProject.description || 'Este proyecto todavía no tiene una descripción.' }}
+        </p>
+        <p class="owner">Creado por {{ currentProject.ownerName }}</p>
+      </div>
+      <button class="primary-button" type="button" (click)="openCreateDialog()">
+        + Nuevo diagrama
+      </button>
+    </header>
+  }
+
+  <p class="screen-message success" role="status" aria-live="polite" [hidden]="!successMessage()">
+    {{ successMessage() }}
+  </p>
+
+  @if (state() === 'loading') {
+    <section class="diagram-grid" aria-label="Cargando diagramas">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </section>
+  }
+
+  @if (state() === 'error') {
+    <section class="feedback-card error-card" role="alert">
+      <span class="feedback-icon" aria-hidden="true">!</span>
+      <h2>No fue posible cargar el proyecto</h2>
+      <p>{{ errorMessage() }}</p>
+      <button class="secondary-button" type="button" (click)="loadProject()">Reintentar</button>
+    </section>
+  }
+
+  @if (state() === 'empty') {
+    <section class="feedback-card empty-card">
+      <span class="empty-illustration" aria-hidden="true">◇</span>
+      <h2>Empieza con tu primer diagrama</h2>
+      <p>
+        Los diagramas permiten organizar clases, atributos y relaciones dentro de este proyecto.
+      </p>
+      <button class="primary-button" type="button" (click)="openCreateDialog()">
+        Crear diagrama
+      </button>
+    </section>
+  }
+
+  @if (state() === 'ready') {
+    <section class="diagram-grid" aria-label="Diagramas del proyecto">
+      @for (diagram of diagrams(); track diagram.id) {
+        <article class="diagram-card">
+          <span class="diagram-icon" aria-hidden="true">◇</span>
+          <p class="diagram-kind">DIAGRAMA DE CLASES</p>
+          <h2>{{ diagram.name }}</h2>
+          <p>Versión {{ diagram.version }}</p>
+          <a [routerLink]="['/projects', diagram.projectId, 'diagrams', diagram.id]"
+            >Abrir editor <span aria-hidden="true">→</span></a
+          >
+        </article>
+      }
+    </section>
+  }
+
+  @if (isCreateDialogOpen()) {
+    <div class="dialog-backdrop" (click)="closeCreateDialog()">
+      <section
+        class="create-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-diagram-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p class="eyebrow">NUEVO DIAGRAMA</p>
+            <h2 id="create-diagram-title">Da forma a tu modelo</h2>
+          </div>
+          <button
+            class="close-button"
+            type="button"
+            aria-label="Cerrar"
+            (click)="closeCreateDialog()"
+          >
+            ×
+          </button>
+        </header>
+        <form [formGroup]="createForm" (ngSubmit)="createDiagram()">
+          <label
+            >Nombre del diagrama<input
+              formControlName="name"
+              placeholder="Ej.: Modelo de dominio"
+              autocomplete="off"
+          /></label>
+          @if (createForm.controls.name.touched && createForm.controls.name.invalid) {
+            <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p>
+          }
+          <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+          <footer>
+            <button class="secondary-button" type="button" (click)="closeCreateDialog()">
+              Cancelar</button
+            ><button class="primary-button" type="submit" [disabled]="isSubmitting()">
+              {{ isSubmitting() ? 'Creando…' : 'Crear diagrama' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

@@ -1,0 +1,115 @@
+<section class="projects-page" aria-labelledby="projects-title">
+  <header class="projects-hero">
+    <div>
+      <p class="eyebrow">ESPACIO DE TRABAJO</p>
+      <h1 id="projects-title">Tus proyectos UML</h1>
+      <p class="hero-copy">
+        Crea, organiza y colabora en tus diagramas de clases desde un solo lugar.
+      </p>
+    </div>
+    <button class="primary-button" type="button" (click)="openCreateDialog()">
+      <span aria-hidden="true">+</span> Nuevo proyecto
+    </button>
+  </header>
+  <p class="screen-message success" role="status" aria-live="polite" [hidden]="!successMessage()">
+    {{ successMessage() }}
+  </p>
+  @if (state() === 'loading') {
+    <section class="project-grid loading-grid" aria-label="Cargando proyectos">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </section>
+  }
+  @if (state() === 'error') {
+    <section class="feedback-card error-card" role="alert">
+      <span class="feedback-icon" aria-hidden="true">!</span>
+      <h2>No fue posible cargar los proyectos</h2>
+      <p>{{ errorMessage() }}</p>
+      <button class="secondary-button" type="button" (click)="loadProjects()">Reintentar</button>
+    </section>
+  }
+  @if (state() === 'empty') {
+    <section class="feedback-card empty-card">
+      <span class="empty-illustration" aria-hidden="true">◇</span>
+      <h2>Tu espacio está listo para empezar</h2>
+      <p>Crea tu primer proyecto para diseñar y compartir diagramas UML.</p>
+      <button class="primary-button" type="button" (click)="openCreateDialog()">
+        Crear mi primer proyecto
+      </button>
+    </section>
+  }
+  @if (state() === 'ready') {
+    <section class="project-grid" aria-label="Lista de proyectos">
+      @for (project of projects(); track project.id) {
+        <article class="project-card">
+          <div class="card-icon" aria-hidden="true">◇</div>
+          <div class="card-content">
+            <p class="owner">{{ project.ownerName }}</p>
+            <h2>{{ project.name }}</h2>
+            <p class="description">{{ project.description || 'Sin descripción todavía.' }}</p>
+          </div>
+          <footer>
+            <span>Proyecto UML</span
+            ><a
+              [routerLink]="['/projects', project.id]"
+              [attr.aria-label]="'Abrir proyecto ' + project.name"
+              >Abrir editor <span aria-hidden="true">→</span></a
+            >
+          </footer>
+        </article>
+      }
+    </section>
+  }
+  @if (isCreateDialogOpen()) {
+    <div class="dialog-backdrop" (click)="closeCreateDialog()">
+      <section
+        class="create-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-project-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <div>
+            <p class="eyebrow">NUEVO PROYECTO</p>
+            <h2 id="create-project-title">Empieza tu próximo diagrama</h2>
+          </div>
+          <button
+            class="close-button"
+            type="button"
+            aria-label="Cerrar"
+            (click)="closeCreateDialog()"
+          >
+            ×
+          </button>
+        </header>
+        <form [formGroup]="createForm" (ngSubmit)="createProject()">
+          <label
+            >Nombre del proyecto<input
+              formControlName="name"
+              placeholder="Ej.: Gestión de biblioteca"
+              autocomplete="off"
+          /></label>
+          @if (createForm.controls.name.touched && createForm.controls.name.invalid) {
+            <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p>
+          }
+          <label
+            >Descripción <span>opcional</span
+            ><textarea
+              formControlName="description"
+              placeholder="¿Qué vas a modelar?"
+            ></textarea></label>
+          <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+          <footer>
+            <button class="secondary-button" type="button" (click)="closeCreateDialog()">
+              Cancelar</button
+            ><button class="primary-button" type="submit" [disabled]="isSubmitting()">
+              {{ isSubmitting() ? 'Creando…' : 'Crear proyecto' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

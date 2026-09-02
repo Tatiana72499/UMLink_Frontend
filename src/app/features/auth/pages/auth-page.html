@@ -1,0 +1,26 @@
+<section class="auth-page" [attr.aria-labelledby]="isRegistering() ? 'register-title' : 'login-title'">
+  <div class="auth-introduction">
+    <a class="brand" routerLink="/auth/login" aria-label="UMLink"><span class="brand-mark" aria-hidden="true">U</span><span>UMLink</span></a>
+    <p class="eyebrow">DISEÑO COLABORATIVO</p>
+    <h1>Modela con claridad.<br />Colabora con confianza.</h1>
+    <p>Crea y organiza tus diagramas UML en un espacio de trabajo personal y seguro.</p>
+  </div>
+  <section class="auth-card">
+    <p class="eyebrow">{{ isRegistering() ? 'NUEVA CUENTA' : 'BIENVENIDA' }}</p>
+    <h2 [id]="isRegistering() ? 'register-title' : 'login-title'">{{ isRegistering() ? 'Crea tu cuenta' : 'Inicia sesión' }}</h2>
+    <p class="subtitle">{{ isRegistering() ? 'Empieza a crear tus proyectos UML.' : 'Continúa con tus proyectos UML.' }}</p>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      @if (isRegistering()) {
+        <label>Tu nombre<input formControlName="name" autocomplete="name" maxlength="120" placeholder="Ej.: Tatiana" /></label>
+        @if (nameError()) { <p class="field-error" role="alert">{{ nameError() }}</p> }
+      }
+      <label>Correo electrónico<input formControlName="email" type="email" autocomplete="email" maxlength="160" placeholder="tu@correo.com" (input)="clearEmailServerError()" /></label>
+      @if (emailError()) { <p class="field-error" role="alert">{{ emailError() }}</p> }
+      <label>Contraseña<input formControlName="password" type="password" autocomplete="current-password" minlength="6" maxlength="8" placeholder="Entre 6 y 8 caracteres" /></label>
+      @if (passwordError()) { <p class="field-error" role="alert">{{ passwordError() }}</p> }
+      @if (errorMessage()) { <p class="form-error" role="alert">{{ errorMessage() }}</p> }
+      <button class="primary-button" type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Procesando…' : isRegistering() ? 'Crear cuenta' : 'Iniciar sesión' }}</button>
+    </form>
+    <p class="switch-copy">@if (isRegistering()) { ¿Ya tienes una cuenta? <a routerLink="/auth/login">Inicia sesión</a> } @else { ¿Aún no tienes cuenta? <a routerLink="/auth/register">Regístrate</a> }</p>
+  </section>
+</section>

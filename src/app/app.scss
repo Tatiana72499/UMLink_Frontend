@@ -1,0 +1,91 @@
+.app-header {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid #dce6f4;
+  display: flex;
+  gap: 2rem;
+  min-height: 4.25rem;
+  padding: 0 2rem;
+}
+
+.brand {
+  align-items: center;
+  color: #103b6f;
+  display: inline-flex;
+  font-size: 1.2rem;
+  font-weight: 800;
+  gap: 0.55rem;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  align-items: center;
+  background: #1565c0;
+  border-radius: 0.6rem;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.9rem;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+nav {
+  display: flex;
+  gap: 0.35rem;
+}
+
+nav a {
+  border-radius: 0.45rem;
+  color: #50627a;
+  font-size: 0.92rem;
+  font-weight: 650;
+  padding: 0.6rem 0.8rem;
+  text-decoration: none;
+}
+
+nav a:hover,
+nav a.active {
+  background: #eaf3ff;
+  color: #0759b8;
+}
+
+.profile-button {
+  background: #dcebff;
+  border: 0;
+  border-radius: 50%;
+  color: #0759b8;
+  cursor: pointer;
+  font-weight: 800;
+  height: 2.25rem;
+  margin-left: auto;
+  width: 2.25rem;
+}
+
+.user-name {
+  color: #50627a;
+  font-size: 0.88rem;
+  font-weight: 650;
+  margin-left: auto;
+}
+
+.app-content {
+  min-height: calc(100vh - 4.25rem);
+}
+
+@media (max-width: 38rem) {
+  .app-header {
+    gap: 0.75rem;
+    padding: 0 0.9rem;
+  }
+  .brand {
+    font-size: 1rem;
+  }
+  nav a {
+    padding: 0.55rem 0.5rem;
+  }
+  .user-name {
+    display: none;
+  }
+}

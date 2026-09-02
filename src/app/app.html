@@ -1,0 +1,22 @@
+@if (user(); as currentUser) {
+<header class="app-header">
+  <a class="brand" routerLink="/projects" aria-label="UMLink, ir a proyectos">
+    <span class="brand-mark" aria-hidden="true">U</span>
+    <span>UMLink</span>
+  </a>
+
+  <nav aria-label="Navegación principal">
+    <a routerLink="/projects" routerLinkActive="active">Proyectos</a>
+    <a routerLink="/diagram" routerLinkActive="active">Editor</a>
+  </nav>
+
+  <span class="user-name">{{ currentUser.name }}</span>
+  <button class="profile-button" type="button" aria-label="Cerrar sesión" (click)="logout()">
+    {{ currentUser.name.slice(0, 1).toUpperCase() }}
+  </button>
+</header>
+}
+
+<main class="app-content">
+  <router-outlet />
+</main>
