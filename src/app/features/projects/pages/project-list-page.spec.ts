@@ -11,6 +11,7 @@ describe('ProjectListPage', () => {
     name: 'Biblioteca',
     description: 'Modelo de biblioteca',
     ownerName: 'Tatiana',
+    version: 0,
     createdAt: '2026-09-01T00:00:00Z',
   };
 

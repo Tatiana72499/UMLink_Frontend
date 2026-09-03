@@ -6,12 +6,13 @@ import { DiagramApiService } from '../../diagram/data-access/diagram-api.service
 import { Diagram } from '../../diagram/models/diagram.model';
 import { ProjectApiService } from '../data-access/project-api.service';
 import { Project } from '../models/project.model';
+import { UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent } from '../../../shared';
 
 type ProjectDetailState = 'loading' | 'empty' | 'ready' | 'error';
 
 @Component({
   selector: 'app-project-detail-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent],
   templateUrl: './project-detail-page.html',
   styleUrl: './project-detail-page.scss',
 })

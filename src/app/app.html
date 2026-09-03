@@ -6,8 +6,8 @@
   </a>
 
   <nav aria-label="Navegación principal">
-    <a routerLink="/projects" routerLinkActive="active">Proyectos</a>
-    <a routerLink="/diagram" routerLinkActive="active">Editor</a>
+    <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Proyectos</a>
+    <a routerLink="/diagram" [class.active]="isEditorActive()">Editor</a>
   </nav>
 
   <span class="user-name">{{ currentUser.name }}</span>

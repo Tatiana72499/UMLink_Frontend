@@ -31,9 +31,12 @@
       </div>
     </header>
 
-    <p class="screen-message success" role="status" aria-live="polite" [hidden]="!successMessage()">
-      {{ successMessage() }}
-    </p>
+    @if (successMessage()) {
+      <p class="screen-message success" role="status" aria-live="polite">{{ successMessage() }}<button type="button" (click)="dismissSuccess()" aria-label="Cerrar aviso">×</button></p>
+    }
+    @if (errorMessage()) {
+      <p class="screen-message error" role="alert">{{ errorMessage() }}<button type="button" (click)="dismissError()" aria-label="Cerrar aviso">×</button></p>
+    }
 
     <div class="editor-layout">
       <aside class="tool-panel" aria-label="Herramientas UML">
@@ -41,7 +44,7 @@
           <span>Elementos UML</span
           ><button type="button" aria-label="Buscar elementos UML">⌕</button>
         </div>
-        <button class="tool selected" type="button" (click)="openCreateDialog()">
+        <button class="tool" [class.selected]="editorMode() === 'place-class'" type="button" (click)="openCreateDialog()">
           <span class="tool-symbol class-symbol" aria-hidden="true"></span
           ><span><strong>Clase</strong><small>Entidad con atributos</small></span>
         </button>
@@ -49,10 +52,20 @@
           <span class="tool-symbol interface-symbol" aria-hidden="true"></span
           ><span><strong>Interfaz</strong><small>Próximamente</small></span>
         </button>
-        <button class="tool" type="button" (click)="openRelationDialog()">
-          <span class="tool-symbol relation-symbol" aria-hidden="true">→</span
-          ><span><strong>Relación</strong><small>Cardinalidad y tipo UML</small></span>
-        </button>
+        <div class="relation-tools" aria-label="Tipos de relación UML">
+          <p>RELACIONES UML</p>
+          @for (relationTool of relationTools; track relationTool.id) {
+            <button
+              class="tool relation-tool"
+              [class.selected]="editorMode() === 'create-relation' && (relationTool.createsAssociationClass ? isCreatingAssociationClass() : !isCreatingAssociationClass() && relationForm.controls.type.value === relationTool.type)"
+              type="button"
+              (click)="activateRelationTool(relationTool.type, relationTool.createsAssociationClass)"
+            >
+              <span class="tool-symbol relation-symbol" aria-hidden="true">{{ relationTool.symbol }}</span>
+              <span><strong>{{ relationTool.label }}</strong><small>{{ relationTool.hint }}</small></span>
+            </button>
+          }
+        </div>
         <div class="quick-help">
           <span aria-hidden="true">✦</span>
           <div>
@@ -62,11 +75,24 @@
         </div>
       </aside>
 
-      <section class="canvas" #canvas aria-label="Lienzo del diagrama" (pointermove)="dragClass($event, canvas)" (pointerup)="finishDrag()" (pointercancel)="finishDrag()">
+      <section class="canvas" #canvas aria-label="Lienzo del diagrama" [class.placing-class]="editorMode() === 'place-class'" [class.creating-relation]="editorMode() === 'create-relation'" [class.drawing]="editorMode() === 'draw'" (pointerdown)="onCanvasPointerDown($event, canvas)" (pointermove)="onCanvasPointerMove($event, canvas)" (pointerup)="onCanvasPointerUp()" (pointercancel)="onCanvasPointerUp()">
         <div class="canvas-heading">
           <span>{{ state() === 'loading' ? 'Cargando…' : classes().length + ' clase(s)' }}</span
           ><span class="saved-state"><i></i> Guardado</span>
         </div>
+        @if (editorMode() === 'place-class') {
+          <div class="editor-action-hint" role="status">
+            <span>Colocando “{{ pendingClassName() }}”</span>
+            <span>Haz clic en el lienzo para soltarla.</span>
+            <button type="button" (click)="cancelEditorAction()">Cancelar</button>
+          </div>
+        }
+        @if (editorMode() === 'create-relation') {
+          <div class="editor-action-hint" role="status">
+            <span>{{ relationSourceId() ? 'Suelta sobre la clase destino.' : 'Arrastra desde la clase de origen hasta la de destino.' }}</span>
+            <button type="button" (click)="cancelEditorAction()">Cancelar</button>
+          </div>
+        }
         @if (state() === 'loading') {
           <div class="canvas-loading">Cargando elementos del diagrama…</div>
         }
@@ -79,28 +105,91 @@
           </div>
         }
         @if (state() === 'ready') {
-          <svg class="relation-layer" aria-hidden="true">
+          <div class="canvas-content" [style.transform]="'scale(' + zoom() + ')'" [style.width.px]="canvasSize().width" [style.height.px]="canvasSize().height">
+          <svg class="relation-layer" role="group" aria-label="Relaciones del diagrama">
             <defs>
-              <marker id="generalization" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="generalization-arrow" /></marker>
-              <marker id="dependency" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10" class="dependency-arrow" /></marker>
-              <marker id="aggregation" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto"><path d="M 0 6 L 5 1 L 10 6 L 5 11 z" class="aggregation-diamond" /></marker>
-              <marker id="composition" markerWidth="12" markerHeight="12" refX="5" refY="6" orient="auto"><path d="M 0 6 L 5 1 L 10 6 L 5 11 z" class="composition-diamond" /></marker>
+              <marker id="generalization" viewBox="0 0 12 12" markerWidth="11" markerHeight="11" refX="11" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 11 6 L 1 11 Z" class="uml-hollow-triangle" /></marker>
+              <marker id="dependency" viewBox="0 0 12 12" markerWidth="10" markerHeight="10" refX="11" refY="6" orient="auto" markerUnits="strokeWidth"><path d="M 1 1 L 11 6 L 1 11" class="uml-open-arrow" /></marker>
+              <marker id="aggregation" viewBox="0 0 12 12" markerWidth="11" markerHeight="11" refX="11" refY="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 1 6 L 6 1 L 11 6 L 6 11 Z" class="uml-hollow-diamond" /></marker>
+              <marker id="composition" viewBox="0 0 12 12" markerWidth="11" markerHeight="11" refX="11" refY="6" orient="auto-start-reverse" markerUnits="strokeWidth"><path d="M 1 6 L 6 1 L 11 6 L 6 11 Z" class="uml-filled-diamond" /></marker>
             </defs>
             @for (relation of relations(); track relation.id) {
               @if (relationGeometry(relation); as geometry) {
-                <line [attr.x1]="geometry.x1" [attr.y1]="geometry.y1" [attr.x2]="geometry.x2" [attr.y2]="geometry.y2" [class.dashed]="relation.type === 'REALIZATION' || relation.type === 'DEPENDENCY'" [attr.marker-start]="relationMarkerStart(relation.type)" [attr.marker-end]="relationMarkerEnd(relation.type)" />
-                @if (relation.sourceCardinality) { <text [attr.x]="geometry.x1 + 8" [attr.y]="geometry.y1 - 8">{{ relation.sourceCardinality }}</text><text [attr.x]="geometry.x2 - 24" [attr.y]="geometry.y2 - 8">{{ relation.targetCardinality }}</text> }
+                @if (associationClass(relation); as associationClass) {
+                  <line
+                    class="association-class-link"
+                    [attr.x1]="geometry.labelX"
+                    [attr.y1]="geometry.labelY + 8"
+                    [attr.x2]="associationClass.positionX + 100"
+                    [attr.y2]="associationClass.positionY + 48"
+                  />
+                }
+                <polyline class="relation-hit-area" [attr.points]="geometry.points" (pointerdown)="startRelationBendDrag($event, relation)" (click)="selectRelation(relation)" />
+                <polyline [attr.points]="geometry.points" [class.dashed]="relation.type === 'REALIZATION' || relation.type === 'DEPENDENCY'" [class.selected]="selectedRelationId() === relation.id" [attr.marker-start]="relationMarkerStart(relation.type)" [attr.marker-end]="relationMarkerEnd(relation.type)" (click)="selectRelation(relation)" />
+                @if (selectedRelationId() === relation.id) {
+                  @if (geometry.alignmentPoints.length === 0) {
+                    <circle class="relation-bend-handle" [attr.cx]="geometry.labelX" [attr.cy]="geometry.labelY + 8" r="6" (pointerdown)="startRelationBendDrag($event, relation)" aria-label="Crear y arrastrar punto de alineación" />
+                  } @else {
+                    @for (alignmentPoint of geometry.alignmentPoints; track $index) {
+                      <circle class="relation-bend-handle" [attr.cx]="alignmentPoint.x" [attr.cy]="alignmentPoint.y" r="6" (pointerdown)="startRelationBendDrag($event, relation, $index)" [attr.aria-label]="'Arrastrar punto de alineación ' + ($index + 1)" />
+                    }
+                  }
+                }
+                @if (relation.sourceCardinality) {
+                  @if (isEditingCanvasCardinality(relation.id, 'source')) {
+                    <foreignObject [attr.x]="geometry.sourceLabelX - 30" [attr.y]="geometry.sourceLabelY - 18" width="60" height="30" class="cardinality-foreign">
+                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de origen" (change)="saveCanvasCardinality(relation, 'source')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
+                    </foreignObject>
+                  } @else {
+                    <text class="cardinality-label" [class.selected]="selectedRelationId() === relation.id" [attr.x]="geometry.sourceLabelX" [attr.y]="geometry.sourceLabelY" role="button" tabindex="0" (click)="openCanvasCardinalityEditor(relation, 'source')" (keydown.enter)="openCanvasCardinalityEditor(relation, 'source')" [attr.aria-label]="'Editar cardinalidad de origen: ' + relation.sourceCardinality">{{ relation.sourceCardinality }}</text>
+                  }
+                  @if (isEditingCanvasCardinality(relation.id, 'target')) {
+                    <foreignObject [attr.x]="geometry.targetLabelX - 30" [attr.y]="geometry.targetLabelY - 18" width="60" height="30" class="cardinality-foreign">
+                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de destino" (change)="saveCanvasCardinality(relation, 'target')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
+                    </foreignObject>
+                  } @else {
+                    <text class="cardinality-label" [class.selected]="selectedRelationId() === relation.id" [attr.x]="geometry.targetLabelX" [attr.y]="geometry.targetLabelY" role="button" tabindex="0" (click)="openCanvasCardinalityEditor(relation, 'target')" (keydown.enter)="openCanvasCardinalityEditor(relation, 'target')" [attr.aria-label]="'Editar cardinalidad de destino: ' + relation.targetCardinality">{{ relation.targetCardinality }}</text>
+                  }
+                }
+                @if (editingRelationLabelId() === relation.id) {
+                  <foreignObject [attr.x]="geometry.labelX - 72" [attr.y]="geometry.labelY - 22" width="144" height="40" class="relation-label-foreign">
+                    <form class="relation-label-editor" [formGroup]="relationLabelForm" (pointerdown)="$event.stopPropagation()" (ngSubmit)="saveRelationLabel(relation)">
+                      <input formControlName="label" aria-label="Palabra de enlace" placeholder="relación" autofocus />
+                      <button type="submit" [disabled]="isSubmitting()" aria-label="Guardar palabra de enlace">✓</button>
+                      <button type="button" (click)="cancelRelationLabelEdit()" aria-label="Cancelar">×</button>
+                    </form>
+                  </foreignObject>
+                } @else if (relationSupportsLabel(relation.type)) {
+                  <circle [attr.cx]="geometry.labelX" [attr.cy]="geometry.labelY - 5" r="18" style="fill:transparent;pointer-events:all" (click)="selectRelation(relation)" (dblclick)="openRelationLabelEditor(relation)" aria-label="Doble clic para editar la palabra de enlace" />
+                  @if (relation.label) {
+                    <text class="relation-label" [attr.x]="geometry.labelX" [attr.y]="geometry.labelY" role="button" tabindex="0" (click)="selectRelation(relation)" (dblclick)="openRelationLabelEditor(relation)" (keydown.enter)="openRelationLabelEditor(relation)">{{ relation.label }}</text>
+                  }
+                }
               }
             }
+            @if (relationPreviewGeometry(); as preview) {
+              <line class="relation-preview" [attr.x1]="preview.x1" [attr.y1]="preview.y1" [attr.x2]="preview.x2" [attr.y2]="preview.y2" />
+            }
+          </svg>
+          <svg class="drawing-layer" aria-label="Trazos temporales">
+            @for (path of freehandPaths(); track $index) { <path [attr.d]="path" /> }
+            @if (currentDrawing(); as drawing) { <path [attr.d]="drawing" /> }
           </svg>
           @for (umlClass of classes(); track umlClass.id) {
             <article
               class="uml-card"
+              [id]="'uml-class-' + umlClass.id"
+              [class.fill-blue]="classColorToken(umlClass.fillColor) === 'blue'"
+              [class.fill-white]="classColorToken(umlClass.fillColor) === 'white'"
+              [class.fill-yellow]="classColorToken(umlClass.fillColor) === 'yellow'"
+              [class.fill-green]="classColorToken(umlClass.fillColor) === 'green'"
+              [class.fill-pink]="classColorToken(umlClass.fillColor) === 'pink'"
               [class.selected]="selectedClassId() === umlClass.id"
               [style.left.px]="umlClass.positionX"
               [style.top.px]="umlClass.positionY"
               (click)="selectClass(umlClass)"
-              (pointerdown)="startDrag($event, umlClass, canvas)"
+              (pointerdown)="onClassPointerDown($event, umlClass, canvas)"
+              (pointerup)="onClassPointerUp($event, umlClass)"
             >
               <div class="uml-stereotype">&lt;&lt;class&gt;&gt;</div>
               <strong>{{ umlClass.name }}</strong>
@@ -109,44 +198,114 @@
               } @else {
                 <ul>
                   @for (attribute of umlClass.attributes; track attribute.id) {
-                    <li>{{ attribute.visibility === 'PUBLIC' ? '+' : '-' }} {{ attribute.name }}: {{ attribute.dataType }}</li>
+                    <li [class.editing]="editingAttributeId() === attribute.id">
+                      @if (editingAttributeId() === attribute.id) {
+                        <form class="inline-attribute-editor" [formGroup]="attributeEditForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="saveAttributeEdit()">
+                          <label [attr.for]="'edit-attribute-' + attribute.id" class="visually-hidden">Editar atributo UML</label>
+                          <input [id]="'edit-attribute-' + attribute.id" formControlName="name" placeholder="nombre" />
+                          <select formControlName="dataType" aria-label="Tipo de atributo">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
+                          <select formControlName="visibility" aria-label="Visibilidad"><option value="PRIVATE">−</option><option value="PUBLIC">+</option><option value="PROTECTED">#</option></select>
+                        </form>
+                      } @else {
+                        <span>{{ attributeVisibilitySymbol(attribute.visibility) }} {{ attribute.name }}: {{ attribute.dataType }}</span>
+                        <button class="element-action" type="button" (pointerdown)="$event.stopPropagation()" (click)="startAttributeEdit(attribute)" aria-label="Editar atributo">✎</button>
+                        <button class="element-action danger" type="button" (pointerdown)="$event.stopPropagation()" (click)="requestDelete({ kind: 'attribute', id: attribute.id, label: 'El atributo' })" aria-label="Eliminar atributo">×</button>
+                      }
+                    </li>
                   }
                 </ul>
               }
+              @if (attributeEditorClassId() === umlClass.id) {
+                <form class="inline-attribute-editor" [formGroup]="attributeLineForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="addAttribute()">
+                  <label [attr.for]="'attribute-' + umlClass.id" class="visually-hidden">Atributo UML</label>
+                  <input [id]="'attribute-' + umlClass.id" formControlName="name" placeholder="nombre" autocomplete="off" />
+                  <select formControlName="dataType" aria-label="Tipo de atributo">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
+                  <select formControlName="visibility" aria-label="Visibilidad"><option value="PRIVATE">−</option><option value="PUBLIC">+</option><option value="PROTECTED">#</option></select>
+                </form>
+                @if (attributeLineForm.touched && attributeLineForm.invalid) { <p class="attribute-error">Escribe un nombre para el atributo.</p> }
+              } @else {
+                <button class="add-attribute-button" type="button" (pointerdown)="$event.stopPropagation()" (click)="openAttributeEditor(umlClass)">+ Agregar atributo</button>
+              }
             </article>
           }
+          </div>
         }
-        <div class="canvas-controls" aria-label="Controles de zoom">
-          <button type="button" aria-label="Alejar">−</button><span>100%</span
-          ><button type="button" aria-label="Acercar">+</button>
+        @if (editorMode() === 'place-class' && placementPreview(); as preview) {
+          <article class="uml-card placement-preview" [style.left.px]="preview.x" [style.top.px]="preview.y" aria-hidden="true">
+            <div class="uml-stereotype">&lt;&lt;class&gt;&gt;</div>
+            <strong>{{ pendingClassName() }}</strong>
+          </article>
+        }
+        <div class="annotation-toolbar" aria-label="Herramientas de dibujo y anotaciones">
+          <button type="button" [class.active]="editorMode() === 'draw'" (click)="toggleDrawingMode()" aria-label="Activar lápiz de dibujo">✎</button>
+          <button type="button" [class.active]="editorMode() === 'erase'" [disabled]="freehandPaths().length === 0" (click)="toggleEraserMode()" aria-label="Activar borrador">⌫</button>
+          <button type="button" [disabled]="freehandPaths().length === 0" (click)="clearDrawings()" aria-label="Eliminar todos los trazos">×</button>
         </div>
+        <div class="canvas-controls" aria-label="Controles de zoom">
+          <button type="button" (click)="zoomOut()" aria-label="Alejar">−</button><span>{{ zoomPercentage() }}%</span
+          ><button type="button" (click)="zoomIn()" aria-label="Acercar">+</button>
+        </div>
+        @if (selectedClass(); as selectedClass) {
+          <div class="appearance-toolbar" aria-label="Color de la clase seleccionada" (pointerdown)="$event.stopPropagation()">
+            <span>Color</span>
+            <button type="button" class="color-swatch blue" (click)="applyClassColor('#EAF3FF')" aria-label="Azul claro"></button>
+            <button type="button" class="color-swatch white" (click)="applyClassColor('#FFFFFF')" aria-label="Blanco"></button>
+            <button type="button" class="color-swatch yellow" (click)="applyClassColor('#FFF3CD')" aria-label="Amarillo suave"></button>
+            <button type="button" class="color-swatch green" (click)="applyClassColor('#E7F7ED')" aria-label="Verde suave"></button>
+            <button type="button" class="color-swatch pink" (click)="applyClassColor('#FCE8E8')" aria-label="Rosado suave"></button>
+            <button type="button" class="no-fill" (click)="applyClassColor(null)">Sin relleno</button>
+          </div>
+        }
       </section>
 
       <aside class="properties-panel" aria-label="Propiedades y relaciones">
         <div class="panel-heading"><span>{{ selectedClass() ? 'Clase seleccionada' : 'Resumen' }}</span></div>
         @if (selectedClass(); as selectedClass) {
           <p class="selection-label">CLASE UML</p>
-          <h2>{{ selectedClass.name }}</h2>
-          <p>{{ selectedClass.attributes.length }} atributo(s).</p>
-          <form class="quick-attribute-form" [formGroup]="attributeForm" (ngSubmit)="addAttribute()">
-            <label>Nuevo atributo<input formControlName="name" placeholder="nombre" /></label>
-            <label>Tipo<input formControlName="dataType" placeholder="String" /></label>
-            <label>Visibilidad<select formControlName="visibility"><option value="PRIVATE">Privado (−)</option><option value="PUBLIC">Público (+)</option><option value="PROTECTED">Protegido (#)</option></select></label>
-            @if (attributeForm.invalid && attributeForm.touched) { <p class="field-error">Completa nombre y tipo.</p> }
-            <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Agregar atributo</button>
+          <form class="class-editor" [formGroup]="classEditForm" (ngSubmit)="saveClass()">
+            <label>Nombre de la clase<input formControlName="name" /></label>
+            @if (classEditForm.invalid && classEditForm.touched) { <p class="field-error">El nombre es obligatorio.</p> }
+            <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar clase</button>
           </form>
-        } @else {
-          <p class="selection-label">DIAGRAMA ACTUAL</p>
-          <label>Nombre<input [value]="diagram()?.name || ''" readonly /></label>
-          <div class="property-section"><h2>Clases</h2><p>{{ classes().length }} elemento(s) en el lienzo.</p></div>
+          <p>{{ selectedClass.attributes.length }} atributo(s).</p>
+          <p class="property-hint">Agrega atributos directamente dentro de la clase y selecciona el tipo permitido.</p>
+          <button class="danger-action compact-action" type="button" (click)="requestDelete({ kind: 'class', id: selectedClass.id, label: 'La clase' })">Eliminar clase</button>
         }
         <div class="property-section">
           <h2>Relaciones</h2>
           @if (relations().length === 0) { <p>Aún no hay relaciones.</p> }
           @for (relation of relations(); track relation.id) {
-            <p class="relation-summary">{{ relationLabel(relation.type) }}@if (relation.sourceCardinality) { · {{ relation.sourceCardinality }} → {{ relation.targetCardinality }} }</p>
+            <button class="relation-summary" [class.selected]="selectedRelationId() === relation.id" type="button" (click)="selectRelation(relation)">{{ relationLabel(relation.type) }}@if (relation.sourceCardinality) { · {{ relation.sourceCardinality }} → {{ relation.targetCardinality }} }</button>
           }
-          <button class="secondary-action compact-action" type="button" (click)="openRelationDialog()">Crear relación</button>
+          @if (selectedRelation(); as selectedRelation) {
+            <form class="relation-editor" [formGroup]="relationEditForm" (ngSubmit)="saveRelation()">
+              <label>Origen<select formControlName="sourceClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
+              <label>Destino<select formControlName="targetClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
+              <label>Tipo<select formControlName="type">@for (relationTool of relationTools; track relationTool.type) { <option [value]="relationTool.type">{{ relationTool.label }}</option> }</select></label>
+              @if (relationEditForm.controls.type.value === 'ASSOCIATION') {
+                <label>Clase de asociación
+                  <select formControlName="associationClassId">
+                    <option value="">Sin clase de asociación</option>
+                    @for (umlClass of classes(); track umlClass.id) {
+                      @if (umlClass.id !== relationEditForm.controls.sourceClassId.value && umlClass.id !== relationEditForm.controls.targetClassId.value) {
+                        <option [value]="umlClass.id">{{ umlClass.name }}</option>
+                      }
+                    }
+                  </select>
+                </label>
+                <p class="property-hint">Selecciona una clase existente para representarla como clase intermedia de esta asociación.</p>
+              }
+              @if (relationSupportsLabel(relationEditForm.controls.type.value)) { <p class="property-hint">La palabra de enlace se edita directamente en el centro de la relación.</p> }
+              @if (relationSupportsCardinality(relationEditForm.controls.type.value) && !relationEditForm.controls.associationClassId.value) {
+                <label>Cardinalidad en origen<select formControlName="sourceCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
+                <label>Cardinalidad en destino<select formControlName="targetCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
+              }
+              <button class="secondary-action compact-action" type="button" (click)="addAlignmentPoint(selectedRelation)">Agregar punto de alineación</button>
+              @if (relationEditForm.invalid && relationEditForm.touched) { <p class="field-error">Revisa los datos de la relación.</p> }
+              <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar relación</button>
+            </form>
+            <button class="danger-action compact-action" type="button" (click)="requestDelete({ kind: 'relation', id: selectedRelation.id, label: 'La relación' })">Eliminar relación</button>
+          }
         </div>
       </aside>
     </div>
@@ -168,7 +327,7 @@
           </div>
           <button type="button" aria-label="Cerrar" (click)="closeCreateDialog()">×</button>
         </header>
-        <form [formGroup]="createForm" (ngSubmit)="createClass()">
+        <form [formGroup]="createForm" (ngSubmit)="prepareClassPlacement()">
           <label
             >Nombre de la clase<input
               formControlName="name"
@@ -183,7 +342,7 @@
             <button class="secondary-action" type="button" (click)="closeCreateDialog()">
               Cancelar</button
             ><button class="primary-action" type="submit" [disabled]="isSubmitting()">
-              {{ isSubmitting() ? 'Creando…' : 'Crear clase' }}
+              {{ isSubmitting() ? 'Preparando…' : 'Elegir ubicación' }}
             </button>
           </footer>
         </form>
@@ -191,17 +350,29 @@
     </div>
   }
 
-  @if (isRelationDialogOpen()) {
-    <div class="dialog-backdrop" (click)="closeRelationDialog()"><section class="create-dialog" role="dialog" aria-modal="true" aria-labelledby="create-relation-title" (click)="$event.stopPropagation()">
-      <header><div><p>NUEVA RELACIÓN UML</p><h2 id="create-relation-title">Conecta dos clases</h2></div><button type="button" aria-label="Cerrar" (click)="closeRelationDialog()">×</button></header>
-      <form [formGroup]="relationForm" (ngSubmit)="createRelation()">
-        <label>Clase de origen<select formControlName="sourceClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
-        <label>Clase de destino<select formControlName="targetClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
-        <label>Tipo de relación<select formControlName="type"><option value="ASSOCIATION">Asociación</option><option value="AGGREGATION">Agregación</option><option value="COMPOSITION">Composición</option><option value="GENERALIZATION">Generalización / herencia</option><option value="REALIZATION">Realización</option><option value="DEPENDENCY">Dependencia</option></select></label>
-        @if (relationUsesCardinality()) { <div class="cardinality-fields"><label>Cardinalidad origen<select formControlName="sourceCardinality"><option value="1">1</option><option value="0..1">0..1</option><option value="*">*</option><option value="0..*">0..*</option><option value="1..*">1..*</option></select></label><label>Cardinalidad destino<select formControlName="targetCardinality"><option value="1">1</option><option value="0..1">0..1</option><option value="*">*</option><option value="0..*">0..*</option><option value="1..*">1..*</option></select></label></div> }
-        <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
-        <footer><button class="secondary-action" type="button" (click)="closeRelationDialog()">Cancelar</button><button class="primary-action" type="submit" [disabled]="isSubmitting()">Crear relación</button></footer>
-      </form>
+  @if (isAssociationClassDialogOpen()) {
+    <div class="dialog-backdrop" (click)="closeAssociationClassDialog()">
+      <section class="create-dialog" role="dialog" aria-modal="true" aria-labelledby="association-class-title" (click)="$event.stopPropagation()">
+        <header>
+          <div><p>CLASE INTERMEDIA</p><h2 id="association-class-title">Nombra la clase de asociación</h2></div>
+          <button type="button" aria-label="Cerrar" (click)="closeAssociationClassDialog()">×</button>
+        </header>
+        <form [formGroup]="associationClassForm" (ngSubmit)="prepareAssociationClassRelation()">
+          <label>Nombre de la clase intermedia<input formControlName="name" placeholder="Ej.: Inscripción" autocomplete="off" /></label>
+          @if (associationClassForm.controls.name.touched && associationClassForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
+          <p>Luego arrastra desde una clase hasta otra. UMLink creará ambas piezas como una sola operación.</p>
+          <footer><button class="secondary-action" type="button" (click)="closeAssociationClassDialog()">Cancelar</button><button class="primary-action" type="submit">Continuar</button></footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (deleteTarget(); as target) {
+    <div class="dialog-backdrop"><section class="create-dialog delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+      <header><div><p>CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar elemento?</h2></div></header>
+      <p>Esta acción eliminará el elemento seleccionado del diagrama.</p>
+      <footer><button class="secondary-action" type="button" (click)="cancelDelete()">Cancelar</button><button class="danger-action" type="button" [disabled]="isSubmitting()" (click)="confirmDelete()">Eliminar</button></footer>
     </section></div>
   }
+
 </section>

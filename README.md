@@ -9,7 +9,8 @@ Cliente web de **UMLink**, una herramienta colaborativa para diseñar diagramas 
 - Editor de diagramas de clases con lienzo, cuadrícula y diseño responsive.
 - Creación de clases y atributos desde el panel de propiedades.
 - Relaciones UML: asociación, agregación, composición, generalización, realización y dependencia.
-- Cardinalidades para asociación, agregación y composición.
+- Cardinalidades visibles en ambos extremos para asociación, agregación y composición, con opciones controladas.
+- Colores de relleno configurables por clase, etiquetas de relación y lápiz temporal para anotaciones libres.
 - Arrastre de clases sobre el lienzo y persistencia de su posición en el backend.
 
 ## Tecnologías

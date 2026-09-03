@@ -28,11 +28,11 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 
 **Estado: en progreso.**
 
-- [x] Barra global UMLink y navegación entre proyectos y editor.
+- [x] Barra global UMLink y navegación entre proyectos y editor, con la sección contextual activa correctamente resaltada.
 - [x] Editor visual estático con paleta azul/blanco, herramientas, lienzo UML y panel de propiedades.
 - [x] Layout responsive de escritorio, tableta y móvil para el editor.
 - [x] Aplicar la misma identidad visual a la pantalla de proyectos.
-- [ ] Definir componentes visuales reutilizables en `shared` cuando se repitan: botones, paneles, estados vacíos y diálogos.
+- [x] Definir componentes visuales reutilizables en `shared` cuando se repitan: botones, paneles, estados vacíos y diálogos.
 
 **No incluye:** arrastrar elementos, persistencia, WebSocket ni IA.
 
@@ -62,7 +62,7 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Listar y crear diagramas del proyecto.
 - [x] Cargar el detalle de un diagrama en el editor.
 - [x] Crear la primera clase UML desde el editor.
-- [ ] Crear, editar y eliminar clases usando las rutas del backend.
+- [x] Crear, editar y eliminar clases usando las rutas del backend.
 - [x] Mostrar y crear atributos, relaciones UML y cardinalidades según el contrato vigente.
 - [ ] Reemplazar las tarjetas estáticas por datos reales.
 
@@ -70,10 +70,20 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 
 ## Fase 4 — Editor UML interactivo
 
-- Selección de elementos y panel de propiedades funcional.
-- Agregar atributos, relaciones y operaciones cuando el backend exponga los contratos necesarios.
+- [x] Selección de elementos y panel de propiedades funcional.
+- [x] Colocar clases en el lienzo, agregar atributos UML en línea y crear cada tipo de relación mediante arrastre.
+- [x] Mostrar cardinalidades en ambos extremos de la conexión y permitir su edición manual validada.
+- [x] Completar CRUD visual de clases, atributos y relaciones UML con confirmación para eliminar.
+- [x] Mejorar semántica visual de relaciones, restringir cardinalidades/tipos y permitir estilos de clase.
+- [x] Incorporar lápiz temporal local en el lienzo; su persistencia colaborativa queda pendiente de contrato backend.
+- [ ] Agregar operaciones cuando el backend exponga el contrato necesario.
 - [x] Arrastrar clases en el lienzo y conservar su posición al soltar.
-- Zoom, ajuste al contenido y atajos de teclado básicos.
+- [x] Incorporar zoom visual del lienzo con controles de acercar y alejar; el ajuste al contenido y los atajos de teclado siguen pendientes.
+- [x] Permitir un punto de quiebre arrastrable y persistente para enrutar visualmente las relaciones.
+- [x] Vincular una clase existente como clase de asociación e identificarla con el conector discontinuo UML.
+- [x] Seleccionar y alinear conectores manualmente sin forzar trazado en L; abrir etiquetas con doble clic central y eliminar la relación seleccionada desde el lienzo.
+- [x] Exponer Clase intermedia como herramienta UML y crear atómicamente la asociación junto con su clase vinculada.
+- [x] Permitir varios puntos de alineación persistentes por relación y ocultar cardinalidad de clase intermedia.
 - Confirmaciones para acciones destructivas y opción de deshacer cuando sea viable.
 
 **Criterio de salida:** una persona puede modelar un diagrama de clases sin depender de datos de ejemplo.

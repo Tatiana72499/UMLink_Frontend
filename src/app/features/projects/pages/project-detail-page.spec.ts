@@ -13,6 +13,7 @@ describe('ProjectDetailPage', () => {
     name: 'Biblioteca',
     description: null,
     ownerName: 'Tatiana',
+    version: 0,
     createdAt: '2026-09-02T00:00:00Z',
   };
   const diagram: Diagram = {

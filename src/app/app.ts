@@ -18,4 +18,8 @@ export class App {
     this.session.clear();
     void this.router.navigate(['/auth/login']);
   }
+
+  isEditorActive(url = this.router.url): boolean {
+    return /^\/projects\/[^/]+\/diagrams\/[^/]+(?:\/|$)/.test(url);
+  }
 }

@@ -1,0 +1,6 @@
+.ui-button { border-radius: .55rem; cursor: pointer; font: inherit; font-weight: 750; padding: .7rem 1rem; }
+.primary { background: #0767c8; border: 1px solid #0767c8; box-shadow: 0 .35rem .8rem rgba(7, 103, 200, .2); color: #fff; }
+.primary:hover:not(:disabled) { background: #0759ad; }
+.secondary { background: #fff; border: 1px solid #c8d9ea; color: #295273; }
+.ui-button:focus-visible { outline: 3px solid #8dc5ff; outline-offset: 3px; }
+.ui-button:disabled { cursor: wait; opacity: .65; }

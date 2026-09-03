@@ -3,12 +3,13 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectApiService } from '../data-access/project-api.service';
 import { CreateProjectRequest, Project } from '../models/project.model';
+import { UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent } from '../../../shared';
 
 type ProjectListState = 'loading' | 'empty' | 'ready' | 'error';
 
 @Component({
   selector: 'app-project-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent],
   templateUrl: './project-list-page.html',
   styleUrl: './project-list-page.scss',
 })

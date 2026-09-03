@@ -35,4 +35,11 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelectorAll('header nav a').length).toBe(2);
   });
+
+  it('should identify a diagram route as the active editor', () => {
+    const fixture = TestBed.createComponent(App);
+
+    expect(fixture.componentInstance.isEditorActive('/projects/project-1/diagrams/diagram-1')).toBe(true);
+    expect(fixture.componentInstance.isEditorActive('/projects')).toBe(false);
+  });
 });

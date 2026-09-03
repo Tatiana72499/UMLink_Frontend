@@ -7,9 +7,9 @@
         Crea, organiza y colabora en tus diagramas de clases desde un solo lugar.
       </p>
     </div>
-    <button class="primary-button" type="button" (click)="openCreateDialog()">
+    <app-ui-button (pressed)="openCreateDialog()">
       <span aria-hidden="true">+</span> Nuevo proyecto
-    </button>
+    </app-ui-button>
   </header>
   <p class="screen-message success" role="status" aria-live="polite" [hidden]="!successMessage()">
     {{ successMessage() }}
@@ -22,22 +22,19 @@
     </section>
   }
   @if (state() === 'error') {
-    <section class="feedback-card error-card" role="alert">
+    <app-ui-panel variant="danger" class="feedback-card error-card" role="alert">
       <span class="feedback-icon" aria-hidden="true">!</span>
       <h2>No fue posible cargar los proyectos</h2>
       <p>{{ errorMessage() }}</p>
-      <button class="secondary-button" type="button" (click)="loadProjects()">Reintentar</button>
-    </section>
+      <app-ui-button variant="secondary" (pressed)="loadProjects()">Reintentar</app-ui-button>
+    </app-ui-panel>
   }
   @if (state() === 'empty') {
-    <section class="feedback-card empty-card">
-      <span class="empty-illustration" aria-hidden="true">◇</span>
-      <h2>Tu espacio está listo para empezar</h2>
-      <p>Crea tu primer proyecto para diseñar y compartir diagramas UML.</p>
-      <button class="primary-button" type="button" (click)="openCreateDialog()">
+    <app-ui-empty-state title="Tu espacio está listo para empezar" message="Crea tu primer proyecto para diseñar y compartir diagramas UML.">
+      <app-ui-button (pressed)="openCreateDialog()">
         Crear mi primer proyecto
-      </button>
-    </section>
+      </app-ui-button>
+    </app-ui-empty-state>
   }
   @if (state() === 'ready') {
     <section class="project-grid" aria-label="Lista de proyectos">
@@ -62,28 +59,7 @@
     </section>
   }
   @if (isCreateDialogOpen()) {
-    <div class="dialog-backdrop" (click)="closeCreateDialog()">
-      <section
-        class="create-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-project-title"
-        (click)="$event.stopPropagation()"
-      >
-        <header>
-          <div>
-            <p class="eyebrow">NUEVO PROYECTO</p>
-            <h2 id="create-project-title">Empieza tu próximo diagrama</h2>
-          </div>
-          <button
-            class="close-button"
-            type="button"
-            aria-label="Cerrar"
-            (click)="closeCreateDialog()"
-          >
-            ×
-          </button>
-        </header>
+    <app-ui-dialog class="create-dialog" [open]="isCreateDialogOpen()" eyebrow="NUEVO PROYECTO" title="Empieza tu próximo diagrama" titleId="create-project-title" (closed)="closeCreateDialog()">
         <form [formGroup]="createForm" (ngSubmit)="createProject()">
           <label
             >Nombre del proyecto<input
@@ -102,14 +78,12 @@
             ></textarea></label>
           <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
           <footer>
-            <button class="secondary-button" type="button" (click)="closeCreateDialog()">
-              Cancelar</button
-            ><button class="primary-button" type="submit" [disabled]="isSubmitting()">
+            <app-ui-button variant="secondary" (pressed)="closeCreateDialog()">Cancelar</app-ui-button>
+            <app-ui-button type="submit" [disabled]="isSubmitting()">
               {{ isSubmitting() ? 'Creando…' : 'Crear proyecto' }}
-            </button>
+            </app-ui-button>
           </footer>
         </form>
-      </section>
-    </div>
+    </app-ui-dialog>
   }
 </section>

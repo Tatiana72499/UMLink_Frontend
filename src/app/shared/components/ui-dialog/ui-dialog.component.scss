@@ -1,0 +1,7 @@
+.backdrop { align-items: center; background: rgba(17, 48, 81, .42); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 10; }
+.dialog { background: #fff; border-radius: .9rem; box-shadow: 0 1.5rem 4rem rgba(10, 47, 83, .28); max-width: 31rem; padding: 1.5rem; width: 100%; }
+header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 1.4rem; }
+header p { color: #2879c9; font-size: .72rem; font-weight: 800; letter-spacing: .1em; margin: 0 0 .55rem; }
+h2 { color: #1b4775; font-size: 1.28rem; margin: 0; }
+header button { background: transparent; border: 0; color: #587794; cursor: pointer; font-size: 1.6rem; }
+header button:focus-visible { outline: 3px solid #8dc5ff; outline-offset: 3px; }

@@ -11,9 +11,9 @@
         </p>
         <p class="owner">Creado por {{ currentProject.ownerName }}</p>
       </div>
-      <button class="primary-button" type="button" (click)="openCreateDialog()">
+      <app-ui-button (pressed)="openCreateDialog()">
         + Nuevo diagrama
-      </button>
+      </app-ui-button>
     </header>
   }
 
@@ -29,25 +29,20 @@
   }
 
   @if (state() === 'error') {
-    <section class="feedback-card error-card" role="alert">
+    <app-ui-panel variant="danger" class="feedback-card error-card" role="alert">
       <span class="feedback-icon" aria-hidden="true">!</span>
       <h2>No fue posible cargar el proyecto</h2>
       <p>{{ errorMessage() }}</p>
-      <button class="secondary-button" type="button" (click)="loadProject()">Reintentar</button>
-    </section>
+      <app-ui-button variant="secondary" (pressed)="loadProject()">Reintentar</app-ui-button>
+    </app-ui-panel>
   }
 
   @if (state() === 'empty') {
-    <section class="feedback-card empty-card">
-      <span class="empty-illustration" aria-hidden="true">◇</span>
-      <h2>Empieza con tu primer diagrama</h2>
-      <p>
-        Los diagramas permiten organizar clases, atributos y relaciones dentro de este proyecto.
-      </p>
-      <button class="primary-button" type="button" (click)="openCreateDialog()">
+    <app-ui-empty-state title="Empieza con tu primer diagrama" message="Los diagramas permiten organizar clases, atributos y relaciones dentro de este proyecto.">
+      <app-ui-button (pressed)="openCreateDialog()">
         Crear diagrama
-      </button>
-    </section>
+      </app-ui-button>
+    </app-ui-empty-state>
   }
 
   @if (state() === 'ready') {
@@ -67,28 +62,7 @@
   }
 
   @if (isCreateDialogOpen()) {
-    <div class="dialog-backdrop" (click)="closeCreateDialog()">
-      <section
-        class="create-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-diagram-title"
-        (click)="$event.stopPropagation()"
-      >
-        <header>
-          <div>
-            <p class="eyebrow">NUEVO DIAGRAMA</p>
-            <h2 id="create-diagram-title">Da forma a tu modelo</h2>
-          </div>
-          <button
-            class="close-button"
-            type="button"
-            aria-label="Cerrar"
-            (click)="closeCreateDialog()"
-          >
-            ×
-          </button>
-        </header>
+    <app-ui-dialog class="create-dialog" [open]="isCreateDialogOpen()" eyebrow="NUEVO DIAGRAMA" title="Da forma a tu modelo" titleId="create-diagram-title" (closed)="closeCreateDialog()">
         <form [formGroup]="createForm" (ngSubmit)="createDiagram()">
           <label
             >Nombre del diagrama<input
@@ -101,14 +75,12 @@
           }
           <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
           <footer>
-            <button class="secondary-button" type="button" (click)="closeCreateDialog()">
-              Cancelar</button
-            ><button class="primary-button" type="submit" [disabled]="isSubmitting()">
+            <app-ui-button variant="secondary" (pressed)="closeCreateDialog()">Cancelar</app-ui-button>
+            <app-ui-button type="submit" [disabled]="isSubmitting()">
               {{ isSubmitting() ? 'Creando…' : 'Crear diagrama' }}
-            </button>
+            </app-ui-button>
           </footer>
         </form>
-      </section>
-    </div>
+    </app-ui-dialog>
   }
 </section>

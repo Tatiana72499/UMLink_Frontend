@@ -5,9 +5,15 @@ import { API_URL } from '../../../core';
 import {
   CreateDiagramRequest,
   CreateAttributeRequest,
+  AssociationClassResponse,
+  CreateAssociationClassRequest,
   CreateRelationRequest,
   CreateUmlClassRequest,
   UpdateUmlClassRequest,
+  UpdateRelationCardinalityRequest,
+  UpdateRelationRequest,
+  UpdateAttributeRequest,
+  UpdateDiagramRequest,
   Diagram,
   DiagramDetails,
   UmlClass,
@@ -27,6 +33,14 @@ export class DiagramApiService {
     return this.http.post<Diagram>(`${this.apiUrl}/projects/${projectId}/diagrams`, request);
   }
 
+  update(diagramId: string, request: UpdateDiagramRequest): Observable<Diagram> {
+    return this.http.put<Diagram>(`${this.apiUrl}/diagrams/${diagramId}`, request);
+  }
+
+  delete(diagramId: string, version: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/diagrams/${diagramId}`, { params: { version } });
+  }
+
   findDetails(diagramId: string): Observable<DiagramDetails> {
     return this.http.get<DiagramDetails>(`${this.apiUrl}/diagrams/${diagramId}`);
   }
@@ -43,7 +57,41 @@ export class DiagramApiService {
     return this.http.post<UmlAttribute>(`${this.apiUrl}/classes/${classId}/attributes`, request);
   }
 
+  updateAttribute(attributeId: string, request: UpdateAttributeRequest): Observable<UmlAttribute> {
+    return this.http.put<UmlAttribute>(`${this.apiUrl}/attributes/${attributeId}`, request);
+  }
+
+  deleteAttribute(attributeId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/attributes/${attributeId}`);
+  }
+
   createRelation(diagramId: string, request: CreateRelationRequest): Observable<UmlRelation> {
     return this.http.post<UmlRelation>(`${this.apiUrl}/diagrams/${diagramId}/relations`, request);
+  }
+
+  createAssociationClass(
+    diagramId: string,
+    request: CreateAssociationClassRequest,
+  ): Observable<AssociationClassResponse> {
+    return this.http.post<AssociationClassResponse>(`${this.apiUrl}/diagrams/${diagramId}/association-classes`, request);
+  }
+
+  updateRelationCardinality(
+    relationId: string,
+    request: UpdateRelationCardinalityRequest,
+  ): Observable<UmlRelation> {
+    return this.http.put<UmlRelation>(`${this.apiUrl}/relations/${relationId}/cardinality`, request);
+  }
+
+  updateRelation(relationId: string, request: UpdateRelationRequest): Observable<UmlRelation> {
+    return this.http.put<UmlRelation>(`${this.apiUrl}/relations/${relationId}`, request);
+  }
+
+  deleteRelation(relationId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/relations/${relationId}`);
+  }
+
+  deleteClass(classId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/classes/${classId}`);
   }
 }
