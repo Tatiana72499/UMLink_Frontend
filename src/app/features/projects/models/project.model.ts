@@ -14,3 +14,7 @@ export interface CreateProjectRequest {
 export interface UpdateProjectRequest extends CreateProjectRequest {
   version: number;
 }
+
+export type ProjectRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+export interface ProjectMember { id: string; userId: string; name: string; email: string; role: ProjectRole; }
+export interface AddProjectMemberRequest { email: string; role: Exclude<ProjectRole, 'OWNER'>; }

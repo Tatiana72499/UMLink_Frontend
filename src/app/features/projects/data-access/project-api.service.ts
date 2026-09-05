@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../../../core';
-import { CreateProjectRequest, Project, UpdateProjectRequest } from '../models/project.model';
+import { AddProjectMemberRequest, CreateProjectRequest, Project, ProjectMember, ProjectRole, UpdateProjectRequest } from '../models/project.model';
 
 @Injectable({ providedIn: 'root' })
 export class ProjectApiService {
@@ -26,4 +26,8 @@ export class ProjectApiService {
   delete(projectId: string, version: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/projects/${projectId}`, { params: { version } });
   }
+  findMembers(projectId: string): Observable<ProjectMember[]> { return this.http.get<ProjectMember[]>(`${this.apiUrl}/projects/${projectId}/members`); }
+  addMember(projectId: string, request: AddProjectMemberRequest): Observable<ProjectMember> { return this.http.post<ProjectMember>(`${this.apiUrl}/projects/${projectId}/members`, request); }
+  updateMember(projectId: string, memberId: string, role: Exclude<ProjectRole, 'OWNER'>): Observable<ProjectMember> { return this.http.put<ProjectMember>(`${this.apiUrl}/projects/${projectId}/members/${memberId}`, { role }); }
+  removeMember(projectId: string, memberId: string): Observable<void> { return this.http.delete<void>(`${this.apiUrl}/projects/${projectId}/members/${memberId}`); }
 }

@@ -1,8 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { DiagramApiService } from '../data-access/diagram-api.service';
-import { DiagramDetails, UmlAttribute, UmlClass, UmlRelation } from '../models/diagram.model';
+import { DiagramActivity, DiagramDetails, UmlAttribute, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
+import { ProjectApiService } from '../../projects/data-access/project-api.service';
+import { AuthSessionService } from '../../../core';
 import { DiagramEditorPage } from './diagram-editor-page';
 
 describe('DiagramEditorPage', () => {
@@ -17,6 +20,7 @@ describe('DiagramEditorPage', () => {
     },
     classes: [],
     relations: [],
+    drawings: [],
   };
   const umlClass: UmlClass = {
     id: 'class-1',
@@ -27,6 +31,7 @@ describe('DiagramEditorPage', () => {
     fillColor: '#EAF3FF',
     version: 0,
     attributes: [],
+    operations: [],
   };
   const umlAttribute: UmlAttribute = {
     id: 'attribute-1',
@@ -45,23 +50,46 @@ describe('DiagramEditorPage', () => {
     sourceCardinality: '1..1',
     targetCardinality: '1..*',
   };
+  const umlOperation: UmlOperation = {
+    id: 'operation-1',
+    umlClassId: umlClass.id,
+    name: 'registrar',
+    visibility: 'PUBLIC',
+    returnType: 'void',
+    parameters: [{ id: 'parameter-1', name: 'correo', dataType: 'String', parameterOrder: 0 }],
+  };
 
   let detailResponse: Observable<DiagramDetails>;
   let classResponse: Observable<UmlClass>;
   let attributeResponse: Observable<UmlAttribute>;
   let relationResponse: Observable<UmlRelation>;
+  let operationResponse: Observable<UmlOperation>;
+  let activityResponse: Observable<DiagramActivity[]>;
   let voidResponse: Observable<void>;
-  const diagramApiStub: Pick<DiagramApiService, 'createAttribute' | 'createClass' | 'deleteAttribute' | 'deleteClass' | 'deleteRelation' | 'findDetails' | 'updateAttribute' | 'updateClass' | 'updateRelation' | 'updateRelationCardinality'> = {
+  let diagramResponse: Observable<DiagramDetails['diagram']>;
+  const projectApiStub: Pick<ProjectApiService, 'findMembers'> = {
+    findMembers: () => of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]),
+  };
+  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'findActivity' | 'findDetails' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
     findDetails: () => detailResponse,
+    findActivity: () => activityResponse,
+    update: () => diagramResponse,
+    delete: () => voidResponse,
     createClass: () => classResponse,
     createAttribute: () => attributeResponse,
     updateClass: () => classResponse,
     updateAttribute: () => attributeResponse,
+    createOperation: () => operationResponse,
+    updateOperation: () => operationResponse,
     updateRelationCardinality: () => relationResponse,
     updateRelation: () => relationResponse,
     deleteClass: () => voidResponse,
     deleteAttribute: () => voidResponse,
+    deleteOperation: () => voidResponse,
     deleteRelation: () => voidResponse,
+    createDrawing: () => of({ id: 'drawing-1', svgPath: 'M 1 1 L 2 2' }),
+    deleteDrawing: () => voidResponse,
+    clearDrawings: () => voidResponse,
   };
 
   beforeEach(async () => {
@@ -69,12 +97,17 @@ describe('DiagramEditorPage', () => {
     classResponse = of(umlClass);
     attributeResponse = of(umlAttribute);
     relationResponse = of({ ...umlRelation, sourceCardinality: '0..1', targetCardinality: '1..*' });
+    operationResponse = of(umlOperation);
+    activityResponse = of([]);
     voidResponse = of(undefined);
+    diagramResponse = of({ ...details.diagram, name: 'Dominio actualizado', version: 1 });
     await TestBed.configureTestingModule({
       imports: [DiagramEditorPage],
       providers: [
         provideRouter([]),
         { provide: DiagramApiService, useValue: diagramApiStub },
+        { provide: ProjectApiService, useValue: projectApiStub },
+        { provide: AuthSessionService, useValue: { token: () => 'test-token', user: () => ({ userId: 'user-1' }) } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap({ diagramId }) } },
@@ -87,6 +120,33 @@ describe('DiagramEditorPage', () => {
     const fixture = TestBed.createComponent(DiagramEditorPage);
     fixture.detectChanges();
     expect(fixture.componentInstance.state()).toBe('empty');
+  });
+
+  it('permite plegar y restaurar el resumen desde el control del lienzo', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.toggleSummary();
+    expect(component.isSummaryVisible()).toBe(false);
+
+    component.toggleSummary();
+    expect(component.isSummaryVisible()).toBe(true);
+  });
+
+  it('guarda un trazo cuando se termina de dibujar', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const canvas = document.createElement('section');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1000, 600));
+
+    component.toggleDrawingMode();
+    component.onCanvasPointerDown({ clientX: 10, clientY: 20 } as PointerEvent, canvas);
+    component.onCanvasPointerMove({ clientX: 30, clientY: 40 } as PointerEvent, canvas);
+    component.onCanvasPointerUp();
+
+    expect(component.freehandPaths()).toEqual([{ id: 'drawing-1', svgPath: 'M 1 1 L 2 2' }]);
   });
 
   it('muestra error cuando no puede cargar el detalle', () => {
@@ -119,6 +179,21 @@ describe('DiagramEditorPage', () => {
     component.addAttribute();
     expect(component.classes()[0].attributes).toEqual([umlAttribute]);
     expect(component.successMessage()).toContain(umlAttribute.name);
+  });
+
+  it('agrega una operación UML con retorno y parámetros tipados', () => {
+    detailResponse = of({ ...details, classes: [umlClass] });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openOperationEditor(umlClass);
+    component.operationForm.setValue({ name: 'registrar', visibility: 'PUBLIC', returnType: 'VOID' });
+    component.addOperationParameter();
+    component.operationParameters.at(0).setValue({ name: 'correo', dataType: 'STRING' });
+    component.saveOperation();
+
+    expect(component.classes()[0].operations).toEqual([umlOperation]);
+    expect(component.successMessage()).toContain('operación');
   });
 
   it('activa la relación para conectar clases mediante arrastre', () => {
@@ -154,6 +229,45 @@ describe('DiagramEditorPage', () => {
     component.selectRelation(umlRelation);
     expect(component.relationEditForm.controls.sourceCardinality.value).toBe('1..1');
     expect(component.relationEditForm.controls.targetCardinality.value).toBe('1..*');
+  });
+
+  it('representa una relación recursiva como un lazo visible', () => {
+    const recursiveRelation = { ...umlRelation, targetClassId: umlClass.id };
+    detailResponse = of({ ...details, classes: [umlClass], relations: [recursiveRelation] });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const geometry = component.relationGeometry(recursiveRelation);
+
+    expect(geometry?.points.trim().split(' ').length).toBe(4);
+    expect(geometry?.x1).toBe(umlClass.positionX + 200);
+  });
+
+  it('carga el historial confirmado del diagrama', () => {
+    activityResponse = of([{
+      id: 'activity-1', actorId: 'user-2', actorName: 'María', action: 'creó una relación', createdAt: '2026-09-04T18:00:00Z',
+    }]);
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openActivityHistory();
+
+    expect(component.activityHistory()).toHaveLength(1);
+    expect(component.activityHistoryState()).toBe('ready');
+  });
+
+  it('genera XML nativo con el contenido del diagrama', () => {
+    detailResponse = of({ ...details, classes: [{ ...umlClass, name: 'Usuario & Cuenta' }], relations: [umlRelation] });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const xml = component.buildXmlExport();
+
+    expect(xml).toContain('<umlinkUml');
+    expect(xml).toContain('Usuario &amp; Cuenta');
+    expect(xml).toContain('<relation');
   });
 
   it('actualiza una clase seleccionada', () => {
@@ -255,5 +369,76 @@ describe('DiagramEditorPage', () => {
     component.requestDelete({ kind: 'attribute', id: umlAttribute.id, label: 'El atributo' });
     component.confirmDelete();
     expect(component.classes()[0].attributes).toEqual([]);
+  });
+
+  it('actualiza el nombre del diagrama desde el editor', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openEditDiagramDialog();
+    component.diagramEditForm.setValue({ name: 'Dominio actualizado' });
+    component.updateDiagram();
+
+    expect(component.diagram()?.name).toBe('Dominio actualizado');
+    expect(component.successMessage()).toContain('actualizado');
+  });
+
+  it('recarga el diagrama y muestra un aviso seguro ante un conflicto de versión', () => {
+    diagramResponse = throwError(() => new HttpErrorResponse({ status: 409, error: { code: 'VERSION_CONFLICT' } }));
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openEditDiagramDialog();
+    component.diagramEditForm.setValue({ name: 'Cambio concurrente' });
+    component.updateDiagram();
+
+    expect(component.errorMessage()).toContain('cambió en otra sesión');
+  });
+
+  it('recarga el diagrama y muestra actividad contextual cuando recibe un cambio remoto', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.handleCollaborationEvent({
+      diagramId,
+      type: 'DIAGRAM_CHANGED',
+      payload: 'creó una clase',
+      actor: { userId: 'other-user', name: 'María' },
+    });
+
+    expect(component.collaborationActivity()[0]).toMatchObject({ name: 'María', action: 'creó una clase' });
+  });
+
+  it('muestra el trazo remoto antes de que la otra persona lo guarde', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.handleCollaborationEvent({
+      diagramId,
+      type: 'DRAWING_PREVIEW',
+      payload: { svgPath: 'M 10 10 L 30 30' },
+      actor: { userId: 'other-user', name: 'María' },
+    });
+
+    expect(component.remoteDrawingPreviews()).toEqual([
+      { userId: 'other-user', name: 'María', svgPath: 'M 10 10 L 30 30' },
+    ]);
+  });
+
+  it('resalta una clase mientras otra persona la arrastra', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.handleCollaborationEvent({
+      diagramId,
+      type: 'ELEMENT_INTERACTION',
+      payload: { elementId: umlClass.id, elementType: 'CLASS', state: 'DRAGGING' },
+      actor: { userId: 'other-user', name: 'María' },
+    });
+
+    expect(component.isClassInteractedRemotely(umlClass.id)).toBe(true);
   });
 });

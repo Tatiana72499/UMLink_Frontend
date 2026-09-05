@@ -23,11 +23,14 @@
         </div>
       </div>
       <div class="toolbar-actions">
-        <button class="secondary-action" type="button">Exportar</button>
-        <button class="share-action" type="button">Compartir</button>
-        <button class="primary-action" type="button" (click)="openCreateDialog()">
-          Nueva clase
-        </button>
+        <app-ui-button variant="secondary" (pressed)="downloadXml()">Descargar</app-ui-button>
+        @if (projectRole() === 'OWNER') {
+          <app-ui-button variant="secondary" (pressed)="openProjectSharing()">Compartir</app-ui-button>
+        }
+        @if (canEdit()) {
+          <button class="toolbar-trash" type="button" (click)="requestDiagramDeletion()" aria-label="Eliminar diagrama" title="Eliminar diagrama">🗑</button>
+          <app-ui-button (pressed)="openCreateDialog()">Nueva clase</app-ui-button>
+        }
       </div>
     </header>
 
@@ -37,14 +40,17 @@
     @if (errorMessage()) {
       <p class="screen-message error" role="alert">{{ errorMessage() }}<button type="button" (click)="dismissError()" aria-label="Cerrar aviso">×</button></p>
     }
+    @if (!canEdit()) {
+      <p class="screen-message readonly" role="status">Modo solo lectura: puedes explorar el diagrama, pero no modificarlo.</p>
+    }
 
-    <div class="editor-layout">
+    <div class="editor-layout" [class.summary-hidden]="!isSummaryVisible()">
       <aside class="tool-panel" aria-label="Herramientas UML">
         <div class="panel-heading">
           <span>Elementos UML</span
           ><button type="button" aria-label="Buscar elementos UML">⌕</button>
         </div>
-        <button class="tool" [class.selected]="editorMode() === 'place-class'" type="button" (click)="openCreateDialog()">
+        <button class="tool" [class.selected]="editorMode() === 'place-class'" type="button" [disabled]="!canEdit()" (click)="openCreateDialog()">
           <span class="tool-symbol class-symbol" aria-hidden="true"></span
           ><span><strong>Clase</strong><small>Entidad con atributos</small></span>
         </button>
@@ -59,9 +65,42 @@
               class="tool relation-tool"
               [class.selected]="editorMode() === 'create-relation' && (relationTool.createsAssociationClass ? isCreatingAssociationClass() : !isCreatingAssociationClass() && relationForm.controls.type.value === relationTool.type)"
               type="button"
+              [disabled]="!canEdit()"
               (click)="activateRelationTool(relationTool.type, relationTool.createsAssociationClass)"
             >
-              <span class="tool-symbol relation-symbol" aria-hidden="true">{{ relationTool.symbol }}</span>
+              <span class="tool-symbol relation-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 20" focusable="false">
+                  @switch (relationTool.id) {
+                    @case ('association') {
+                      <line x1="4" y1="10" x2="44" y2="10" />
+                    }
+                    @case ('association-class') {
+                      <line x1="4" y1="10" x2="44" y2="10" />
+                      <rect x="20" y="5" width="8" height="10" class="association-class-box" />
+                    }
+                    @case ('aggregation') {
+                      <polygon points="4,10 11,4 18,10 11,16" class="uml-icon-hollow" />
+                      <line x1="18" y1="10" x2="44" y2="10" />
+                    }
+                    @case ('composition') {
+                      <polygon points="4,10 11,4 18,10 11,16" class="uml-icon-filled" />
+                      <line x1="18" y1="10" x2="44" y2="10" />
+                    }
+                    @case ('generalization') {
+                      <line x1="4" y1="10" x2="32" y2="10" />
+                      <polygon points="44,10 32,3 32,17" class="uml-icon-hollow" />
+                    }
+                    @case ('realization') {
+                      <line x1="4" y1="10" x2="32" y2="10" class="uml-icon-dashed" />
+                      <polygon points="44,10 32,3 32,17" class="uml-icon-hollow" />
+                    }
+                    @case ('dependency') {
+                      <line x1="4" y1="10" x2="35" y2="10" class="uml-icon-dashed" />
+                      <path d="M 44 10 L 35 5 M 44 10 L 35 15" class="uml-icon-open-arrow" />
+                    }
+                  }
+                </svg>
+              </span>
               <span><strong>{{ relationTool.label }}</strong><small>{{ relationTool.hint }}</small></span>
             </button>
           }
@@ -78,7 +117,7 @@
       <section class="canvas" #canvas aria-label="Lienzo del diagrama" [class.placing-class]="editorMode() === 'place-class'" [class.creating-relation]="editorMode() === 'create-relation'" [class.drawing]="editorMode() === 'draw'" (pointerdown)="onCanvasPointerDown($event, canvas)" (pointermove)="onCanvasPointerMove($event, canvas)" (pointerup)="onCanvasPointerUp()" (pointercancel)="onCanvasPointerUp()">
         <div class="canvas-heading">
           <span>{{ state() === 'loading' ? 'Cargando…' : classes().length + ' clase(s)' }}</span
-          ><span class="saved-state"><i></i> Guardado</span>
+          ><span class="saved-state collaboration-state" [class.connected]="collaborationState() === 'connected'" [class.warning]="collaborationState() === 'reconnecting' || collaborationState() === 'error'"><i></i> {{ collaborationStatusLabel() }} · v{{ diagram()?.version ?? '—' }}</span>
         </div>
         @if (editorMode() === 'place-class') {
           <div class="editor-action-hint" role="status">
@@ -172,7 +211,8 @@
             }
           </svg>
           <svg class="drawing-layer" aria-label="Trazos temporales">
-            @for (path of freehandPaths(); track $index) { <path [attr.d]="path" /> }
+            @for (drawing of freehandPaths(); track drawing.id) { <path [attr.d]="drawing.svgPath" /> }
+            @for (preview of remoteDrawingPreviews(); track preview.userId) { <path class="remote-drawing-preview" [attr.d]="preview.svgPath" /> }
             @if (currentDrawing(); as drawing) { <path [attr.d]="drawing" /> }
           </svg>
           @for (umlClass of classes(); track umlClass.id) {
@@ -185,8 +225,10 @@
               [class.fill-green]="classColorToken(umlClass.fillColor) === 'green'"
               [class.fill-pink]="classColorToken(umlClass.fillColor) === 'pink'"
               [class.selected]="selectedClassId() === umlClass.id"
+              [class.remote-active]="isClassInteractedRemotely(umlClass.id)"
               [style.left.px]="umlClass.positionX"
               [style.top.px]="umlClass.positionY"
+              [style.--collaboration-color]="remoteClassColor(umlClass.id)"
               (click)="selectClass(umlClass)"
               (pointerdown)="onClassPointerDown($event, umlClass, canvas)"
               (pointerup)="onClassPointerUp($event, umlClass)"
@@ -209,7 +251,7 @@
                       } @else {
                         <span>{{ attributeVisibilitySymbol(attribute.visibility) }} {{ attribute.name }}: {{ attribute.dataType }}</span>
                         <button class="element-action" type="button" (pointerdown)="$event.stopPropagation()" (click)="startAttributeEdit(attribute)" aria-label="Editar atributo">✎</button>
-                        <button class="element-action danger" type="button" (pointerdown)="$event.stopPropagation()" (click)="requestDelete({ kind: 'attribute', id: attribute.id, label: 'El atributo' })" aria-label="Eliminar atributo">×</button>
+                        <button class="element-action danger" type="button" (pointerdown)="$event.stopPropagation()" (click)="requestDelete({ kind: 'attribute', id: attribute.id, label: 'El atributo' })" aria-label="Eliminar atributo" title="Eliminar atributo">🗑</button>
                       }
                     </li>
                   }
@@ -226,6 +268,26 @@
               } @else {
                 <button class="add-attribute-button" type="button" (pointerdown)="$event.stopPropagation()" (click)="openAttributeEditor(umlClass)">+ Agregar atributo</button>
               }
+              @if (umlClass.operations.length > 0) {
+                <ul class="operation-list" aria-label="Operaciones UML">
+                  @for (operation of umlClass.operations; track operation.id) {
+                    <li [class.editing]="editingOperationId() === operation.id">
+                      @if (editingOperationId() === operation.id) {
+                        <ng-container [ngTemplateOutlet]="operationEditor" [ngTemplateOutletContext]="{ umlClass: umlClass }" />
+                      } @else {
+                        <span>{{ operationDeclaration(operation) }}</span>
+                        <button class="element-action" type="button" (pointerdown)="$event.stopPropagation()" (click)="startOperationEdit(operation)" aria-label="Editar operación">✎</button>
+                        <button class="element-action danger" type="button" (pointerdown)="$event.stopPropagation()" (click)="requestDelete({ kind: 'operation', id: operation.id, label: 'La operación' })" aria-label="Eliminar operación" title="Eliminar operación">🗑</button>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+              @if (operationEditorClassId() === umlClass.id && !editingOperationId()) {
+                <ng-container [ngTemplateOutlet]="operationEditor" [ngTemplateOutletContext]="{ umlClass: umlClass }" />
+              } @else if (operationEditorClassId() !== umlClass.id) {
+                <button class="add-operation-button" type="button" (pointerdown)="$event.stopPropagation()" (click)="openOperationEditor(umlClass)">+ Agregar operación</button>
+              }
             </article>
           }
           </div>
@@ -237,14 +299,24 @@
           </article>
         }
         <div class="annotation-toolbar" aria-label="Herramientas de dibujo y anotaciones">
-          <button type="button" [class.active]="editorMode() === 'draw'" (click)="toggleDrawingMode()" aria-label="Activar lápiz de dibujo">✎</button>
-          <button type="button" [class.active]="editorMode() === 'erase'" [disabled]="freehandPaths().length === 0" (click)="toggleEraserMode()" aria-label="Activar borrador">⌫</button>
-          <button type="button" [disabled]="freehandPaths().length === 0" (click)="clearDrawings()" aria-label="Eliminar todos los trazos">×</button>
+          <button type="button" [class.active]="editorMode() === 'draw'" [disabled]="!canEdit()" (click)="toggleDrawingMode()" aria-label="Activar lápiz de dibujo">✎</button>
+          <button type="button" [class.active]="editorMode() === 'erase'" [disabled]="!canEdit() || freehandPaths().length === 0" (click)="toggleEraserMode()" aria-label="Activar borrador">⌫</button>
+          <button type="button" [disabled]="!canEdit() || freehandPaths().length === 0" (click)="clearDrawings()" aria-label="Eliminar todos los trazos" title="Eliminar todos los trazos">🗑</button>
         </div>
         <div class="canvas-controls" aria-label="Controles de zoom">
           <button type="button" (click)="zoomOut()" aria-label="Alejar">−</button><span>{{ zoomPercentage() }}%</span
           ><button type="button" (click)="zoomIn()" aria-label="Acercar">+</button>
         </div>
+        <button class="summary-toggle" type="button" (click)="toggleSummary()" [attr.aria-expanded]="isSummaryVisible()">
+          {{ isSummaryVisible() ? 'Ocultar resumen' : 'Mostrar resumen' }}
+        </button>
+        @if (collaborationActivity().length > 0) {
+          <section class="collaboration-activity" aria-live="polite" aria-label="Actividad reciente de colaboración">
+            @for (activity of collaborationActivity(); track activity.id) {
+              <article><span aria-hidden="true">{{ activity.name.charAt(0) }}</span><p><strong>{{ activity.name }}</strong> {{ activity.action }}</p></article>
+            }
+          </section>
+        }
         @if (selectedClass(); as selectedClass) {
           <div class="appearance-toolbar" aria-label="Color de la clase seleccionada" (pointerdown)="$event.stopPropagation()">
             <span>Color</span>
@@ -260,6 +332,32 @@
 
       <aside class="properties-panel" aria-label="Propiedades y relaciones">
         <div class="panel-heading"><span>{{ selectedClass() ? 'Clase seleccionada' : 'Resumen' }}</span></div>
+        <section class="collaboration-panel" aria-live="polite">
+          <p>COLABORACIÓN</p>
+          <strong>{{ collaborationStatusLabel() }}</strong>
+          @if (participants().length > 0) {
+            <span>{{ participants().length }} participante(s) en este diagrama</span>
+            <ul>
+              @for (participant of participants(); track participant.userId) { <li>{{ participant.name }}</li> }
+            </ul>
+          } @else {
+            <span>Aún no hay otros participantes conectados.</span>
+          }
+        </section>
+        <section class="property-section" aria-live="polite">
+          <h2>Historial <button type="button" class="text-action" (click)="openActivityHistory()">Ver todo</button></h2>
+          @if (activityHistoryState() === 'loading') {
+            <p>Cargando cambios…</p>
+          } @else if (activityHistoryState() === 'error') {
+            <p>No pudimos cargar el historial.</p>
+          } @else if (activitySummary().length === 0) {
+            <p>Aún no hay cambios confirmados.</p>
+          } @else {
+            @for (activity of activitySummary(); track activity.id) {
+              <p><strong>{{ activity.actorName }}</strong> {{ activity.action }}</p>
+            }
+          }
+        </section>
         @if (selectedClass(); as selectedClass) {
           <p class="selection-label">CLASE UML</p>
           <form class="class-editor" [formGroup]="classEditForm" (ngSubmit)="saveClass()">
@@ -268,8 +366,10 @@
             <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar clase</button>
           </form>
           <p>{{ selectedClass.attributes.length }} atributo(s).</p>
+          <p>{{ selectedClass.operations.length }} operación(es).</p>
+          <p class="property-hint">Las operaciones se agregan directamente dentro de la clase, con retorno y parámetros tipados.</p>
           <p class="property-hint">Agrega atributos directamente dentro de la clase y selecciona el tipo permitido.</p>
-          <button class="danger-action compact-action" type="button" (click)="requestDelete({ kind: 'class', id: selectedClass.id, label: 'La clase' })">Eliminar clase</button>
+          <button class="danger-action compact-action icon-only-action" type="button" (click)="requestDelete({ kind: 'class', id: selectedClass.id, label: 'La clase' })" aria-label="Eliminar clase" title="Eliminar clase">🗑</button>
         }
         <div class="property-section">
           <h2>Relaciones</h2>
@@ -300,16 +400,42 @@
                 <label>Cardinalidad en origen<select formControlName="sourceCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
                 <label>Cardinalidad en destino<select formControlName="targetCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
               }
-              <button class="secondary-action compact-action" type="button" (click)="addAlignmentPoint(selectedRelation)">Agregar punto de alineación</button>
               @if (relationEditForm.invalid && relationEditForm.touched) { <p class="field-error">Revisa los datos de la relación.</p> }
-              <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar relación</button>
+              <div class="relation-editor-actions">
+                <button class="relation-alignment-action" type="button" (click)="addAlignmentPoint(selectedRelation)"><span aria-hidden="true">+</span> Punto de alineación</button>
+                <button class="relation-save-action" type="submit" [disabled]="isSubmitting()">Guardar cambios</button>
+              </div>
             </form>
-            <button class="danger-action compact-action" type="button" (click)="requestDelete({ kind: 'relation', id: selectedRelation.id, label: 'La relación' })">Eliminar relación</button>
+            <button class="relation-delete-action" type="button" (click)="requestDelete({ kind: 'relation', id: selectedRelation.id, label: 'La relación' })" aria-label="Eliminar relación" title="Eliminar relación">🗑</button>
           }
         </div>
       </aside>
     </div>
   }
+
+  <ng-template #operationEditor let-umlClass="umlClass">
+    <form class="inline-operation-editor" [formGroup]="operationForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="saveOperation()">
+      <label class="visually-hidden" [attr.for]="'operation-name-' + umlClass.id">Nombre de operación</label>
+      <input [id]="'operation-name-' + umlClass.id" formControlName="name" placeholder="nombreOperación" autocomplete="off" />
+      <select formControlName="visibility" aria-label="Visibilidad de la operación"><option value="PUBLIC">+</option><option value="PRIVATE">−</option><option value="PROTECTED">#</option></select>
+      <select formControlName="returnType" aria-label="Tipo de retorno"><option value="VOID">void</option>@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
+      <div class="operation-parameters">
+        @for (parameter of operationParameters.controls; track $index) {
+          <div [formGroup]="parameter">
+            <input formControlName="name" placeholder="parámetro" [attr.aria-label]="'Nombre del parámetro ' + ($index + 1)" />
+            <select formControlName="dataType" [attr.aria-label]="'Tipo del parámetro ' + ($index + 1)">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
+            <button type="button" class="element-action danger" (click)="removeOperationParameter($index)" [attr.aria-label]="'Quitar parámetro ' + ($index + 1)">×</button>
+          </div>
+        }
+      </div>
+      <div class="operation-editor-actions">
+        <button type="button" class="text-action" (click)="addOperationParameter()" [disabled]="operationParameters.length >= 10">+ Parámetro</button>
+        <button type="submit" class="text-action" [disabled]="isSubmitting()">Guardar</button>
+        <button type="button" class="text-action" (click)="closeOperationEditor()">Cancelar</button>
+      </div>
+      @if (operationForm.touched && operationForm.invalid || operationParameters.touched && operationParameters.invalid) { <p class="attribute-error">Completa el nombre y los parámetros de la operación.</p> }
+    </form>
+  </ng-template>
 
   @if (isCreateDialogOpen()) {
     <div class="dialog-backdrop" (click)="closeCreateDialog()">
@@ -371,8 +497,50 @@
     <div class="dialog-backdrop"><section class="create-dialog delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
       <header><div><p>CONFIRMACIÓN</p><h2 id="delete-title">¿Eliminar elemento?</h2></div></header>
       <p>Esta acción eliminará el elemento seleccionado del diagrama.</p>
-      <footer><button class="secondary-action" type="button" (click)="cancelDelete()">Cancelar</button><button class="danger-action" type="button" [disabled]="isSubmitting()" (click)="confirmDelete()">Eliminar</button></footer>
+      <footer><button class="secondary-action" type="button" (click)="cancelDelete()">Cancelar</button><button class="danger-action icon-only-action" type="button" [disabled]="isSubmitting()" (click)="confirmDelete()" aria-label="Confirmar eliminación" title="Eliminar">🗑</button></footer>
     </section></div>
+  }
+
+  @if (isEditDiagramDialogOpen()) {
+    <app-ui-dialog [open]="isEditDiagramDialogOpen()" eyebrow="DIAGRAMA DE CLASES" title="Editar diagrama" titleId="editor-edit-diagram-title" (closed)="closeEditDiagramDialog()">
+      <form [formGroup]="diagramEditForm" (ngSubmit)="updateDiagram()">
+        <label>Nombre del diagrama<input formControlName="name" autocomplete="off" /></label>
+        @if (diagramEditForm.controls.name.touched && diagramEditForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
+        <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+        <footer>
+          <app-ui-button variant="secondary" (pressed)="closeEditDiagramDialog()">Cancelar</app-ui-button>
+          <app-ui-button type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Guardando…' : 'Guardar cambios' }}</app-ui-button>
+        </footer>
+      </form>
+    </app-ui-dialog>
+  }
+
+  @if (isActivityDialogOpen()) {
+    <app-ui-dialog [open]="isActivityDialogOpen()" eyebrow="COLABORACIÓN" title="Historial del diagrama" titleId="diagram-activity-title" (closed)="closeActivityHistory()">
+      @if (activityHistoryState() === 'loading') {
+        <p class="activity-state">Cargando cambios confirmados…</p>
+      } @else if (activityHistoryState() === 'error') {
+        <p class="activity-state error">No pudimos cargar el historial. Cierra e inténtalo nuevamente.</p>
+      } @else if (activityHistory().length === 0) {
+        <p class="activity-state">Aún no hay cambios confirmados para este diagrama.</p>
+      } @else {
+        <ol class="activity-history">
+          @for (activity of activityHistory(); track activity.id) {
+            <li><span aria-hidden="true">{{ activity.actorName.charAt(0) }}</span><p><strong>{{ activity.actorName }}</strong> {{ activity.action }}<small>{{ activityTimestamp(activity.createdAt) }}</small></p></li>
+          }
+        </ol>
+      }
+    </app-ui-dialog>
+  }
+
+  @if (isDeleteDiagramDialogOpen()) {
+    <app-ui-dialog [open]="isDeleteDiagramDialogOpen()" eyebrow="CONFIRMACIÓN" title="¿Eliminar diagrama?" titleId="editor-delete-diagram-title" (closed)="cancelDiagramDeletion()">
+      <p class="dialog-copy">Eliminarás este diagrama y sus elementos. Esta acción no se puede deshacer.</p>
+      <footer>
+        <app-ui-button variant="secondary" (pressed)="cancelDiagramDeletion()">Cancelar</app-ui-button>
+        <button class="danger-action icon-only-action" type="button" [disabled]="isSubmitting()" (click)="deleteDiagram()" aria-label="Confirmar eliminación del diagrama" title="Eliminar diagrama">🗑</button>
+      </footer>
+    </app-ui-dialog>
   }
 
 </section>

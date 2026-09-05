@@ -11,9 +11,11 @@
         </p>
         <p class="owner">Creado por {{ currentProject.ownerName }}</p>
       </div>
-      <app-ui-button (pressed)="openCreateDialog()">
-        + Nuevo diagrama
-      </app-ui-button>
+      <div class="project-actions">
+        @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openShareDialog()">Compartir</app-ui-button> }
+        @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openEditProjectDialog()">Editar proyecto</app-ui-button> }
+        @if (canEditDiagrams()) { <app-ui-button (pressed)="openCreateDialog()">+ Nuevo diagrama</app-ui-button> }
+      </div>
     </header>
   }
 
@@ -39,9 +41,7 @@
 
   @if (state() === 'empty') {
     <app-ui-empty-state title="Empieza con tu primer diagrama" message="Los diagramas permiten organizar clases, atributos y relaciones dentro de este proyecto.">
-      <app-ui-button (pressed)="openCreateDialog()">
-        Crear diagrama
-      </app-ui-button>
+      @if (canEditDiagrams()) { <app-ui-button (pressed)="openCreateDialog()">Crear diagrama</app-ui-button> }
     </app-ui-empty-state>
   }
 
@@ -53,9 +53,13 @@
           <p class="diagram-kind">DIAGRAMA DE CLASES</p>
           <h2>{{ diagram.name }}</h2>
           <p>Versión {{ diagram.version }}</p>
-          <a [routerLink]="['/projects', diagram.projectId, 'diagrams', diagram.id]"
-            >Abrir editor <span aria-hidden="true">→</span></a
-          >
+          <div class="diagram-actions">
+            <a [routerLink]="['/projects', diagram.projectId, 'diagrams', diagram.id]">Abrir editor <span aria-hidden="true">→</span></a>
+            @if (canEditDiagrams()) {
+              <button type="button" (click)="openEditDiagramDialog(diagram)">Editar</button>
+              <button class="danger-link" type="button" (click)="requestDiagramDeletion(diagram)">Eliminar</button>
+            }
+          </div>
         </article>
       }
     </section>
@@ -82,5 +86,75 @@
           </footer>
         </form>
     </app-ui-dialog>
+  }
+
+  @if (isEditProjectDialogOpen()) {
+    <app-ui-dialog [open]="isEditProjectDialogOpen()" eyebrow="PROYECTO UML" title="Editar proyecto" titleId="edit-project-title" (closed)="closeEditProjectDialog()">
+      <form [formGroup]="projectEditForm" (ngSubmit)="updateProject()">
+        <label>Nombre del proyecto<input formControlName="name" autocomplete="off" /></label>
+        @if (projectEditForm.controls.name.touched && projectEditForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
+        <label>Descripción <span>opcional</span><textarea formControlName="description"></textarea></label>
+        <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+        <footer>
+          <app-ui-button variant="secondary" (pressed)="closeEditProjectDialog()">Cancelar</app-ui-button>
+          <app-ui-button type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Guardando…' : 'Guardar cambios' }}</app-ui-button>
+        </footer>
+      </form>
+    </app-ui-dialog>
+  }
+
+  @if (isShareDialogOpen()) {
+    <app-ui-dialog class="share-dialog" [open]="isShareDialogOpen()" eyebrow="COLABORACIÓN" title="Compartir proyecto" titleId="share-project-title" (closed)="closeShareDialog()">
+      <div class="share-intro"><span aria-hidden="true">↗</span><p>Invita a personas de tu equipo y define qué pueden hacer en este proyecto.</p></div>
+      <section class="share-link" aria-label="Enlace del proyecto"><div><strong>Enlace del proyecto</strong><small>Abre el proyecto, pero no concede acceso por sí solo.</small></div><app-ui-button variant="secondary" (pressed)="copyProjectLink()">Copiar enlace</app-ui-button></section>
+      <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="inviteMember()">
+        <label class="invite-email">Correo electrónico<input formControlName="email" type="email" autocomplete="email" placeholder="persona@correo.com" /></label>
+        <fieldset class="permission-picker"><legend>Permiso</legend><div><button type="button" [class.selected]="inviteForm.controls.role.value === 'EDITOR'" (click)="setInviteRole('EDITOR')"><strong>Editor</strong><small>Puede modificar</small></button><button type="button" [class.selected]="inviteForm.controls.role.value === 'VIEWER'" (click)="setInviteRole('VIEWER')"><strong>Viewer</strong><small>Solo lectura</small></button></div></fieldset>
+        @if (inviteForm.invalid && inviteForm.touched) { <p class="field-error">Escribe un correo válido.</p> }
+        @if (inviteError()) { <p class="field-error">{{ inviteError() }}</p> }
+        <app-ui-button type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Agregando…' : 'Agregar persona' }}</app-ui-button>
+      </form>
+      <section class="members-list" aria-label="Miembros del proyecto"><div class="members-heading"><h3>Personas con acceso</h3><span>{{ members().length }}</span></div>@for (member of members(); track member.id) { <div class="member-row"><span class="member-avatar" aria-hidden="true">{{ member.name.charAt(0) }}</span><span class="member-identity"><strong>{{ member.name }}</strong><small>{{ member.email }}</small></span>@if (member.role === 'OWNER') { <em>Owner</em> } @else { <div class="member-actions"><div class="member-role-toggle" [attr.aria-label]="'Permiso de ' + member.name"><button type="button" [class.selected]="member.role === 'EDITOR'" (click)="changeMemberRole(member, 'EDITOR')">Editor</button><button type="button" [class.selected]="member.role === 'VIEWER'" (click)="changeMemberRole(member, 'VIEWER')">Viewer</button></div><button type="button" (click)="removeMember(member)" aria-label="Quitar a {{ member.name }}">Quitar</button></div> }</div> }</section>
+    </app-ui-dialog>
+  }
+
+  @if (isEditDiagramDialogOpen()) {
+    <app-ui-dialog [open]="isEditDiagramDialogOpen()" eyebrow="DIAGRAMA DE CLASES" title="Editar diagrama" titleId="edit-diagram-title" (closed)="closeEditDiagramDialog()">
+      <form [formGroup]="diagramEditForm" (ngSubmit)="updateDiagram()">
+        <label>Nombre del diagrama<input formControlName="name" autocomplete="off" /></label>
+        @if (diagramEditForm.controls.name.touched && diagramEditForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
+        <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+        <footer>
+          <app-ui-button variant="secondary" (pressed)="closeEditDiagramDialog()">Cancelar</app-ui-button>
+          <app-ui-button type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Guardando…' : 'Guardar cambios' }}</app-ui-button>
+        </footer>
+      </form>
+    </app-ui-dialog>
+  }
+
+  @if (isDeleteProjectDialogOpen()) {
+    <app-ui-dialog [open]="isDeleteProjectDialogOpen()" eyebrow="CONFIRMACIÓN" title="¿Eliminar proyecto?" titleId="delete-project-title" (closed)="cancelProjectDeletion()">
+      <p class="dialog-copy">Eliminarás este proyecto y sus diagramas. Esta acción no se puede deshacer.</p>
+      <footer>
+        <app-ui-button variant="secondary" (pressed)="cancelProjectDeletion()">Cancelar</app-ui-button>
+        <button class="danger-button" type="button" [disabled]="isSubmitting()" (click)="deleteProject()">Eliminar proyecto</button>
+      </footer>
+    </app-ui-dialog>
+  }
+
+  @if (diagramPendingDeletion(); as diagram) {
+    <app-ui-dialog [open]="true" eyebrow="CONFIRMACIÓN" title="¿Eliminar diagrama?" titleId="delete-diagram-title" (closed)="cancelDiagramDeletion()">
+      <p class="dialog-copy">Eliminarás el diagrama “{{ diagram.name }}”. Esta acción no se puede deshacer.</p>
+      <footer>
+        <app-ui-button variant="secondary" (pressed)="cancelDiagramDeletion()">Cancelar</app-ui-button>
+        <button class="danger-button" type="button" [disabled]="isSubmitting()" (click)="deleteDiagram()">Eliminar diagrama</button>
+      </footer>
+    </app-ui-dialog>
+  }
+
+  @if (project() && canManageMembers()) {
+    <div class="project-danger-zone">
+      <button type="button" (click)="requestProjectDeletion()">Eliminar proyecto</button>
+    </div>
   }
 </section>

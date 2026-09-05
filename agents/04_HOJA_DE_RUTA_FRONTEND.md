@@ -26,9 +26,9 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 
 ## Fase 1 — Sistema visual y navegación
 
-**Estado: en progreso.**
+**Estado: completada.**
 
-- [x] Barra global UMLink y navegación entre proyectos y editor, con la sección contextual activa correctamente resaltada.
+- [x] Barra global UMLink y navegación entre proyectos y editor.
 - [x] Editor visual estático con paleta azul/blanco, herramientas, lienzo UML y panel de propiedades.
 - [x] Layout responsive de escritorio, tableta y móvil para el editor.
 - [x] Aplicar la misma identidad visual a la pantalla de proyectos.
@@ -64,7 +64,7 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Crear la primera clase UML desde el editor.
 - [x] Crear, editar y eliminar clases usando las rutas del backend.
 - [x] Mostrar y crear atributos, relaciones UML y cardinalidades según el contrato vigente.
-- [ ] Reemplazar las tarjetas estáticas por datos reales.
+- [x] Reemplazar las tarjetas estáticas por datos reales.
 
 **Criterio de salida:** un diagrama se puede guardar y recuperar conservando sus clases.
 
@@ -75,25 +75,31 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Mostrar cardinalidades en ambos extremos de la conexión y permitir su edición manual validada.
 - [x] Completar CRUD visual de clases, atributos y relaciones UML con confirmación para eliminar.
 - [x] Mejorar semántica visual de relaciones, restringir cardinalidades/tipos y permitir estilos de clase.
-- [x] Incorporar lápiz temporal local en el lienzo; su persistencia colaborativa queda pendiente de contrato backend.
-- [ ] Agregar operaciones cuando el backend exponga el contrato necesario.
-- [x] Arrastrar clases en el lienzo y conservar su posición al soltar.
+- [x] Incorporar lápiz colaborativo persistido: crear, borrar selectivamente y limpiar trazos compartidos.
+- [x] Agregar operaciones UML en línea con retorno, visibilidad y parámetros tipados cuando el backend expone el contrato necesario.
+- [x] Arrastrar clases en el lienzo y conservar su posición al soltar.clase de asociación
 - [x] Incorporar zoom visual del lienzo con controles de acercar y alejar; el ajuste al contenido y los atajos de teclado siguen pendientes.
 - [x] Permitir un punto de quiebre arrastrable y persistente para enrutar visualmente las relaciones.
 - [x] Vincular una clase existente como clase de asociación e identificarla con el conector discontinuo UML.
 - [x] Seleccionar y alinear conectores manualmente sin forzar trazado en L; abrir etiquetas con doble clic central y eliminar la relación seleccionada desde el lienzo.
 - [x] Exponer Clase intermedia como herramienta UML y crear atómicamente la asociación junto con su clase vinculada.
 - [x] Permitir varios puntos de alineación persistentes por relación y ocultar cardinalidad de clase intermedia.
+- [x] Permitir relaciones recursivas visuales y consultar el historial persistido de cambios del diagrama.
+- [x] Mejorar los controles del editor: resumen plegable desde el lienzo, acciones de eliminación con icono de papelera y miniaturas UML vectoriales para las herramientas de relación.
 - Confirmaciones para acciones destructivas y opción de deshacer cuando sea viable.
 
 **Criterio de salida:** una persona puede modelar un diagrama de clases sin depender de datos de ejemplo.
 
 ## Fase 5 — Colaboración en tiempo real
 
-- Conexión segura al WebSocket `/ws` mediante un servicio en `features/collaboration/data-access`.
-- Indicador de conexión y reconexión.
-- Presencia de participantes, actualizaciones de cambios y resolución explícita de conflictos.
+- [x] Conexión segura al WebSocket `/ws` mediante un servicio en `features/collaboration/data-access`.
+- [x] Indicador de conexión y reconexión.
+- [x] Presencia de participantes, actualizaciones de cambios y resolución explícita de conflictos.
+- [x] Compartir por correo o enlace de navegación, administrar miembros y aplicar roles `OWNER`, `EDITOR` y `VIEWER`.
+- [x] Previsualizar trazos remotos, señalar clases tomadas por otra persona y presentar actividad remota contextual dentro del lienzo.
 - Regla de experiencia: nunca ocultar un cambio remoto; se informa quién lo realizó y qué elemento afectó.
+
+**Estado: completada.** El transporte seguro, la presencia, la actualización remota y las membresías con roles están implementados.
 
 **Criterio de salida:** dos usuarios pueden colaborar sobre el mismo diagrama sin pérdida silenciosa de cambios.
 
@@ -112,6 +118,8 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - Flujo de confirmación antes de que la IA cambie el diagrama.
 - Comandos de voz con retroalimentación visible y alternativa de teclado.
 - Importación y exportación XML según el formato acordado.
+- [x] Descargar una exportación XML nativa de UMLink que conserva el modelo completo; no sustituye la futura compatibilidad XMI.
+- [ ] Compartir un archivo XMI UML e importar/exportar un subconjunto documentado, compatible primero con Enterprise Architect y otros editores que soporten el mismo perfil XMI.
 
 **Criterio de salida:** cada sugerencia de IA, voz o importación es revisable, reversible y comprensible por la persona usuaria.
 

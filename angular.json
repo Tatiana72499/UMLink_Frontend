@@ -32,7 +32,8 @@
             ],
             "styles": [
               "src/styles.scss"
-            ]
+            ],
+            "allowedCommonJsDependencies": ["@stomp/stompjs"]
           },
           "configurations": {
             "production": {
@@ -44,8 +45,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                    "maximumWarning": "17kB",
-                    "maximumError": "19kB"
+                    "maximumWarning": "23kB",
+                    "maximumError": "24kB"
                 }
               ],
               "outputHashing": "all"

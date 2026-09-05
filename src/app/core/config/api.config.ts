@@ -4,3 +4,7 @@ import { environment } from '../../../environments/environment';
 export const API_URL = new InjectionToken<string>('API_URL', {
   factory: () => environment.apiUrl,
 });
+
+export const WEB_SOCKET_URL = new InjectionToken<string>('WEB_SOCKET_URL', {
+  factory: () => environment.webSocketUrl,
+});

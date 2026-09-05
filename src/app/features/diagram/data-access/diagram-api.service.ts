@@ -15,9 +15,14 @@ import {
   UpdateAttributeRequest,
   UpdateDiagramRequest,
   Diagram,
+  DiagramActivity,
+  DiagramDrawing,
   DiagramDetails,
   UmlClass,
   UmlAttribute,
+  UmlOperation,
+  CreateUmlOperationRequest,
+  UpdateUmlOperationRequest,
   UmlRelation,
 } from '../models/diagram.model';
 
@@ -45,6 +50,22 @@ export class DiagramApiService {
     return this.http.get<DiagramDetails>(`${this.apiUrl}/diagrams/${diagramId}`);
   }
 
+  findActivity(diagramId: string): Observable<DiagramActivity[]> {
+    return this.http.get<DiagramActivity[]>(`${this.apiUrl}/diagrams/${diagramId}/activity`);
+  }
+
+  createDrawing(diagramId: string, svgPath: string): Observable<DiagramDrawing> {
+    return this.http.post<DiagramDrawing>(`${this.apiUrl}/diagrams/${diagramId}/drawings`, { svgPath });
+  }
+
+  deleteDrawing(diagramId: string, drawingId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/diagrams/${diagramId}/drawings/${drawingId}`);
+  }
+
+  clearDrawings(diagramId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/diagrams/${diagramId}/drawings`);
+  }
+
   createClass(diagramId: string, request: CreateUmlClassRequest): Observable<UmlClass> {
     return this.http.post<UmlClass>(`${this.apiUrl}/diagrams/${diagramId}/classes`, request);
   }
@@ -63,6 +84,18 @@ export class DiagramApiService {
 
   deleteAttribute(attributeId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/attributes/${attributeId}`);
+  }
+
+  createOperation(classId: string, request: CreateUmlOperationRequest): Observable<UmlOperation> {
+    return this.http.post<UmlOperation>(`${this.apiUrl}/classes/${classId}/operations`, request);
+  }
+
+  updateOperation(operationId: string, request: UpdateUmlOperationRequest): Observable<UmlOperation> {
+    return this.http.put<UmlOperation>(`${this.apiUrl}/operations/${operationId}`, request);
+  }
+
+  deleteOperation(operationId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/operations/${operationId}`);
   }
 
   createRelation(diagramId: string, request: CreateRelationRequest): Observable<UmlRelation> {

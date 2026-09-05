@@ -21,6 +21,13 @@
   margin: 1.4rem 0 2rem;
   padding-bottom: 1.8rem;
 }
+.project-actions,
+.diagram-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
 .eyebrow {
   color: #2879c9;
   font-size: 0.72rem;
@@ -131,6 +138,28 @@ h1 {
   font-weight: 800;
   text-decoration: none;
 }
+.diagram-actions {
+  border-top: 1px solid #e4edf6;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+}
+.diagram-actions button,
+.project-danger-zone button {
+  background: transparent;
+  border: 0;
+  color: #2879c9;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0;
+}
+.diagram-actions .danger-link,
+.project-danger-zone button { color: #ad3b3b; }
+.diagram-actions button:hover,
+.diagram-actions button:focus-visible,
+.project-danger-zone button:hover,
+.project-danger-zone button:focus-visible { text-decoration: underline; }
 .feedback-card {
   background: #fff;
   border: 1px solid #dbe7f4;
@@ -251,6 +280,65 @@ h1 {
   justify-content: flex-end;
   margin-top: 1.5rem;
 }
+.dialog-copy { color: #496b8d; line-height: 1.5; }
+.share-intro { align-items: flex-start; color: #496b8d; display: flex; gap: 0.7rem; line-height: 1.5; margin-bottom: 1.15rem; }
+.share-intro span { align-items: center; background: #eaf3ff; border-radius: 0.55rem; color: #0767c8; display: inline-flex; font-weight: 900; height: 2rem; justify-content: center; width: 2rem; }
+.share-intro p { margin: 0; }
+.share-link { align-items: center; background: #f6faff; border: 1px solid #d9e8f7; border-radius: 0.7rem; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 1.2rem; padding: 0.85rem; }
+.share-link div { display: grid; gap: 0.15rem; }
+.share-link strong { color: #234d79; font-size: 0.84rem; }
+.share-link small { color: #6987a3; font-size: 0.74rem; }
+.invite-form { border-bottom: 1px solid #dbe7f4; display: grid; gap: 0.85rem; grid-template-columns: minmax(0, 1fr); padding-bottom: 1.25rem; }
+.invite-form label { margin: 0; min-width: 0; }
+.invite-form input { box-sizing: border-box; width: 100%; }
+.invite-form app-ui-button { justify-self: start; }
+.permission-picker { border: 0; margin: 0; min-width: 0; padding: 0; }
+.permission-picker legend { color: #496b8d; font-size: 0.82rem; font-weight: 750; margin-bottom: 0.35rem; padding: 0; }
+.permission-picker > div { background: #f3f8fd; border: 1px solid #d7e5f3; border-radius: 0.55rem; display: grid; grid-template-columns: 1fr 1fr; padding: 0.2rem; }
+.permission-picker button { background: transparent; border: 0; border-radius: 0.4rem; color: #6a839c; cursor: pointer; display: grid; font: inherit; gap: 0.05rem; padding: 0.38rem 0.5rem; text-align: left; }
+.permission-picker button strong { font-size: 0.76rem; }
+.permission-picker button small { font-size: 0.65rem; }
+.permission-picker button.selected { background: #fff; box-shadow: 0 0.12rem 0.35rem rgba(22, 79, 130, 0.15); color: #0767c8; }
+.members-list {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+}
+.members-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 0.35rem; }
+.members-heading h3 { color: #1b4775; font-size: 1rem; margin: 0; }
+.members-heading > span { align-items: center; background: #eaf3ff; border-radius: 999px; color: #1763ae; display: inline-flex; font-size: 0.72rem; font-weight: 800; height: 1.45rem; justify-content: center; width: 1.45rem; }
+.members-list .member-row {
+  align-items: center;
+  border-top: 1px solid #edf3f8;
+  display: flex;
+  gap: 0.7rem;
+  justify-content: space-between;
+  padding: 0.7rem 0;
+}
+.member-avatar { align-items: center; background: #eaf3ff; border-radius: 50%; color: #1763ae; display: inline-flex; flex: 0 0 auto; font-size: 0.75rem; font-weight: 850; height: 1.9rem; justify-content: center; text-transform: uppercase; width: 1.9rem; }
+.members-list .member-identity { display: grid; flex: 1; min-width: 0; }
+.members-list strong { color: #244d78; font-size: 0.86rem; }
+.members-list small { color: #6987a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.members-list em { color: #2879c9; font-size: 0.8rem; font-style: normal; font-weight: 800; }
+.members-list button { background: transparent; border: 0; color: #ad3b3b; cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 800; padding: 0; }
+.member-actions { align-items: center; display: flex; gap: 0.55rem; }
+.member-role-toggle { background: #f3f8fd; border: 1px solid #d7e5f3; border-radius: 999px; display: flex; padding: 0.15rem; }
+.members-list .member-role-toggle button { border-radius: 999px; color: #6a839c; font-size: 0.68rem; padding: 0.28rem 0.48rem; }
+.members-list .member-role-toggle button.selected { background: #fff; box-shadow: 0 0.1rem 0.25rem rgba(22, 79, 130, 0.15); color: #0767c8; }
+.danger-button {
+  background: #b43b3b;
+  border: 1px solid #b43b3b;
+  border-radius: 0.55rem;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 750;
+  padding: 0.7rem 1rem;
+}
+.danger-button:disabled { cursor: wait; opacity: 0.65; }
+.project-danger-zone {
+  border-top: 1px solid #f0d4d4;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+}
 @media (max-width: 38rem) {
   .project-detail-page {
     padding: 1.6rem 1rem 2.5rem;
@@ -260,9 +348,13 @@ h1 {
     flex-direction: column;
     gap: 1rem;
   }
+  .project-actions { width: 100%; }
+  .project-actions app-ui-button { flex: 1; }
   .project-header .primary-button {
     width: 100%;
   }
+  .share-link, .invite-form { align-items: stretch; grid-template-columns: 1fr; }
+  .share-link { flex-direction: column; }
   .diagram-grid {
     grid-template-columns: 1fr;
   }

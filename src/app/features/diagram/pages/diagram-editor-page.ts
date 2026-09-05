@@ -1,28 +1,44 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, computed, DestroyRef, inject, OnDestroy, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthSessionService, isVersionConflict } from '../../../core';
+import { CollaborationWebSocketService, DiagramEvent } from '../../collaboration';
+import { UiButtonComponent, UiDialogComponent } from '../../../shared';
 import { DiagramApiService } from '../data-access/diagram-api.service';
-import { AttributeDataType, Diagram, RelationAlignmentPoint, RelationType, UmlClass, UmlRelation } from '../models/diagram.model';
+import { AttributeDataType, Diagram, DiagramActivity, DiagramDrawing, OperationReturnType, RelationAlignmentPoint, RelationType, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
+import { ProjectApiService } from '../../projects/data-access/project-api.service';
+import { ProjectRole } from '../../projects/models/project.model';
 
 type EditorState = 'loading' | 'empty' | 'ready' | 'error' | 'selection';
 type EditorMode = 'select' | 'place-class' | 'create-relation' | 'draw' | 'erase';
 type CanvasPoint = { x: number; y: number };
-type RelationTool = { id: string; type: RelationType; label: string; hint: string; symbol: string; createsAssociationClass: boolean };
-type DeleteTarget = { kind: 'class' | 'attribute' | 'relation'; id: string; label: string };
+type RelationTool = { id: string; type: RelationType; label: string; hint: string; createsAssociationClass: boolean };
+type DeleteTarget = { kind: 'class' | 'attribute' | 'operation' | 'relation'; id: string; label: string };
 type CardinalityEndpoint = 'source' | 'target';
 type CanvasCardinalityEdit = { relationId: string; endpoint: CardinalityEndpoint };
 type RelationGeometry = { x1: number; y1: number; x2: number; y2: number; points: string; alignmentPoints: RelationAlignmentPoint[]; sourceLabelX: number; sourceLabelY: number; targetLabelX: number; targetLabelY: number; labelX: number; labelY: number };
+type RemoteDrawingPreview = { userId: string; name: string; svgPath: string };
+type RemoteClassInteraction = { userId: string; name: string; classId: string };
+type CollaborationActivity = { id: string; name: string; action: string };
+type ActivityHistoryState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
   selector: 'app-diagram-editor-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, NgTemplateOutlet, UiButtonComponent, UiDialogComponent],
   templateUrl: './diagram-editor-page.html',
   styleUrl: './diagram-editor-page.scss',
 })
-export class DiagramEditorPage {
+export class DiagramEditorPage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly diagramApi = inject(DiagramApiService);
+  private readonly projectApi = inject(ProjectApiService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly authSession = inject(AuthSessionService);
+  private readonly collaboration = inject(CollaborationWebSocketService);
   private readonly diagramId = this.route.snapshot.paramMap.get('diagramId');
 
   readonly state = signal<EditorState>('loading');
@@ -33,7 +49,14 @@ export class DiagramEditorPage {
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
   readonly isCreateDialogOpen = signal(false);
+  readonly isEditDiagramDialogOpen = signal(false);
+  readonly isDeleteDiagramDialogOpen = signal(false);
   readonly isAssociationClassDialogOpen = signal(false);
+  readonly isActivityDialogOpen = signal(false);
+  readonly isSummaryVisible = signal(true);
+  readonly activityHistory = signal<DiagramActivity[]>([]);
+  readonly activityHistoryState = signal<ActivityHistoryState>('idle');
+  readonly activitySummary = computed(() => this.activityHistory().slice(0, 3));
   readonly isSubmitting = signal(false);
   readonly editorMode = signal<EditorMode>('select');
   readonly pendingClassName = signal<string | null>(null);
@@ -45,24 +68,33 @@ export class DiagramEditorPage {
   readonly attributeEditorClassId = signal<string | null>(null);
   readonly selectedRelationId = signal<string | null>(null);
   readonly editingAttributeId = signal<string | null>(null);
+  readonly operationEditorClassId = signal<string | null>(null);
+  readonly editingOperationId = signal<string | null>(null);
   readonly deleteTarget = signal<DeleteTarget | null>(null);
-  readonly freehandPaths = signal<string[]>([]);
+  readonly freehandPaths = signal<DiagramDrawing[]>([]);
   readonly currentDrawing = signal<string | null>(null);
   readonly zoom = signal(1);
   readonly editingRelationLabelId = signal<string | null>(null);
   readonly editingCanvasCardinality = signal<CanvasCardinalityEdit | null>(null);
+  readonly collaborationState = this.collaboration.state;
+  readonly participants = this.collaboration.participants;
+  readonly projectRole = signal<ProjectRole | null>(null);
+  readonly remoteDrawingPreviews = signal<RemoteDrawingPreview[]>([]);
+  readonly remoteClassInteractions = signal<RemoteClassInteraction[]>([]);
+  readonly collaborationActivity = signal<CollaborationActivity[]>([]);
+  readonly canEdit = computed(() => this.projectRole() === 'OWNER' || this.projectRole() === 'EDITOR');
   readonly canvasSize = computed(() => ({
-    width: Math.max(1200, ...this.classes().map((umlClass) => umlClass.positionX + 260)),
-    height: Math.max(620, ...this.classes().map((umlClass) => umlClass.positionY + this.umlClassHeight(umlClass) + 100)),
+    width: Math.max(1200, ...this.classes().map((umlClass) => umlClass.positionX + 340)),
+    height: Math.max(620, ...this.classes().map((umlClass) => umlClass.positionY + this.umlClassHeight(umlClass) + 180)),
   }));
   readonly relationTools: readonly RelationTool[] = [
-    { id: 'association', type: 'ASSOCIATION', label: 'Asociación', hint: 'Relación estructural', symbol: '—', createsAssociationClass: false },
-    { id: 'association-class', type: 'ASSOCIATION', label: 'Clase intermedia', hint: 'Clase de asociación', symbol: '—□' , createsAssociationClass: true },
-    { id: 'aggregation', type: 'AGGREGATION', label: 'Agregación', hint: 'Todo y partes', symbol: '◇—', createsAssociationClass: false },
-    { id: 'composition', type: 'COMPOSITION', label: 'Composición', hint: 'Parte dependiente', symbol: '◆—', createsAssociationClass: false },
-    { id: 'generalization', type: 'GENERALIZATION', label: 'Herencia', hint: 'Generalización', symbol: '—▷', createsAssociationClass: false },
-    { id: 'realization', type: 'REALIZATION', label: 'Realización', hint: 'Implementa interfaz', symbol: '┄▷', createsAssociationClass: false },
-    { id: 'dependency', type: 'DEPENDENCY', label: 'Dependencia', hint: 'Uso temporal', symbol: '┄→', createsAssociationClass: false },
+    { id: 'association', type: 'ASSOCIATION', label: 'Asociación', hint: 'Relación estructural', createsAssociationClass: false },
+    { id: 'association-class', type: 'ASSOCIATION', label: 'Clase intermedia', hint: 'Clase de asociación', createsAssociationClass: true },
+    { id: 'aggregation', type: 'AGGREGATION', label: 'Agregación', hint: 'Todo y partes', createsAssociationClass: false },
+    { id: 'composition', type: 'COMPOSITION', label: 'Composición', hint: 'Parte dependiente', createsAssociationClass: false },
+    { id: 'generalization', type: 'GENERALIZATION', label: 'Herencia', hint: 'Generalización', createsAssociationClass: false },
+    { id: 'realization', type: 'REALIZATION', label: 'Realización', hint: 'Implementa interfaz', createsAssociationClass: false },
+    { id: 'dependency', type: 'DEPENDENCY', label: 'Dependencia', hint: 'Uso temporal', createsAssociationClass: false },
   ];
   readonly attributeTypes: readonly { value: AttributeDataType; label: string }[] = [
     { value: 'STRING', label: 'String' }, { value: 'INTEGER', label: 'Integer' },
@@ -71,6 +103,9 @@ export class DiagramEditorPage {
     { value: 'LOCAL_DATE', label: 'LocalDate' }, { value: 'LOCAL_DATE_TIME', label: 'LocalDateTime' },
   ];
   readonly createForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+  });
+  readonly diagramEditForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
   });
   readonly associationClassForm = this.formBuilder.nonNullable.group({
@@ -89,6 +124,12 @@ export class DiagramEditorPage {
     dataType: ['STRING' as AttributeDataType, Validators.required],
     visibility: ['PRIVATE'],
   });
+  readonly operationForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+    visibility: ['PUBLIC' as 'PUBLIC' | 'PRIVATE' | 'PROTECTED', Validators.required],
+    returnType: ['VOID' as OperationReturnType, Validators.required],
+  });
+  readonly operationParameters = this.formBuilder.nonNullable.array<ReturnType<DiagramEditorPage['createOperationParameterForm']>>([]);
   readonly relationForm = this.formBuilder.nonNullable.group({
     type: ['ASSOCIATION' as RelationType, Validators.required],
     label: [''],
@@ -116,9 +157,22 @@ export class DiagramEditorPage {
   private isErasing = false;
   private draggedRelationId: string | null = null;
   private draggedAlignmentPointIndex: number | null = null;
+  private readonly deletingDrawingIds = new Set<string>();
+  private lastDrawingPreviewAt = 0;
+  private readonly remoteInteractionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly activityTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor() {
     this.loadDiagram();
+    this.collaboration.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => this.handleCollaborationEvent(event));
+  }
+
+  ngOnDestroy(): void {
+    this.remoteInteractionTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.activityTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.collaboration.disconnect();
   }
 
   loadDiagram(): void {
@@ -134,7 +188,11 @@ export class DiagramEditorPage {
         this.diagram.set(details.diagram);
         this.classes.set(details.classes);
         this.relations.set(details.relations);
+        this.freehandPaths.set(details.drawings);
         this.state.set(details.classes.length === 0 ? 'empty' : 'ready');
+        this.loadProjectRole(details.diagram.projectId);
+        this.collaboration.connect(details.diagram.id);
+        this.loadActivityHistory();
       },
       error: () => {
         this.errorMessage.set('No pudimos cargar este diagrama. Inténtalo nuevamente.');
@@ -143,7 +201,74 @@ export class DiagramEditorPage {
     });
   }
 
+  openActivityHistory(): void {
+    if (!this.diagramId) return;
+    this.isActivityDialogOpen.set(true);
+    this.loadActivityHistory();
+  }
+
+  private loadActivityHistory(): void {
+    if (!this.diagramId) return;
+    this.activityHistoryState.set('loading');
+    this.diagramApi.findActivity(this.diagramId).subscribe({
+      next: (activity) => {
+        this.activityHistory.set(activity);
+        this.activityHistoryState.set('ready');
+      },
+      error: () => this.activityHistoryState.set('error'),
+    });
+  }
+
+  closeActivityHistory(): void {
+    this.isActivityDialogOpen.set(false);
+  }
+
+  toggleSummary(): void {
+    this.isSummaryVisible.update((visible) => !visible);
+  }
+
+  downloadXml(): void {
+    const diagram = this.diagram();
+    if (!diagram) return;
+    const file = new Blob([this.buildXmlExport()], { type: 'application/xml;charset=utf-8' });
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(file);
+    link.href = objectUrl;
+    link.download = `${this.fileNameFrom(diagram.name)}.umlink.xml`;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+    this.successMessage.set('El archivo XML del diagrama fue descargado.');
+  }
+
+  buildXmlExport(): string {
+    const diagram = this.diagram();
+    if (!diagram) return '';
+    const classes = this.classes().map((umlClass) => `    <class id="${this.xml(umlClass.id)}" name="${this.xml(umlClass.name)}" positionX="${umlClass.positionX}" positionY="${umlClass.positionY}" fillColor="${this.xml(umlClass.fillColor ?? '')}">
+${umlClass.attributes.map((attribute) => `      <attribute id="${this.xml(attribute.id)}" name="${this.xml(attribute.name)}" dataType="${this.xml(attribute.dataType)}" visibility="${this.xml(attribute.visibility)}" />`).join('\n')}
+${umlClass.operations.map((operation) => `      <operation id="${this.xml(operation.id)}" name="${this.xml(operation.name)}" visibility="${this.xml(operation.visibility)}" returnType="${this.xml(operation.returnType)}">
+${operation.parameters.map((parameter) => `        <parameter id="${this.xml(parameter.id)}" name="${this.xml(parameter.name)}" dataType="${this.xml(parameter.dataType)}" order="${parameter.parameterOrder}" />`).join('\n')}
+      </operation>`).join('\n')}
+    </class>`).join('\n');
+    const relations = this.relations().map((relation) => `    <relation id="${this.xml(relation.id)}" sourceClassId="${this.xml(relation.sourceClassId)}" targetClassId="${this.xml(relation.targetClassId)}" type="${this.xml(relation.type)}" label="${this.xml(relation.label ?? '')}" sourceCardinality="${this.xml(relation.sourceCardinality ?? '')}" targetCardinality="${this.xml(relation.targetCardinality ?? '')}" associationClassId="${this.xml(relation.associationClassId ?? '')}">
+${(relation.alignmentPoints ?? []).map((point) => `      <alignmentPoint x="${point.x}" y="${point.y}" />`).join('\n')}
+    </relation>`).join('\n');
+    const drawings = this.freehandPaths().map((drawing) => `    <drawing id="${this.xml(drawing.id)}" svgPath="${this.xml(drawing.svgPath)}" />`).join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<umlinkUml version="1.0" diagramId="${this.xml(diagram.id)}" name="${this.xml(diagram.name)}">
+  <classes>
+${classes}
+  </classes>
+  <relations>
+${relations}
+  </relations>
+  <drawings>
+${drawings}
+  </drawings>
+</umlinkUml>`;
+  }
+
   openCreateDialog(): void {
+    if (!this.ensureCanEdit()) return;
     this.successMessage.set('');
     this.errorMessage.set('');
     this.isCreateDialogOpen.set(true);
@@ -154,7 +279,68 @@ export class DiagramEditorPage {
     this.createForm.reset();
   }
 
+  openProjectSharing(): void {
+    const diagram = this.diagram();
+    if (!diagram || this.projectRole() !== 'OWNER') return;
+    this.router.navigate(['/projects', diagram.projectId], { fragment: 'share' });
+  }
+
+  openEditDiagramDialog(): void {
+    if (!this.ensureCanEdit()) return;
+    const diagram = this.diagram();
+    if (!diagram) return;
+    this.errorMessage.set('');
+    this.diagramEditForm.reset({ name: diagram.name });
+    this.isEditDiagramDialogOpen.set(true);
+  }
+
+  closeEditDiagramDialog(): void { this.isEditDiagramDialogOpen.set(false); }
+
+  updateDiagram(): void {
+    if (!this.ensureCanEdit()) return;
+    const diagram = this.diagram();
+    if (!diagram || this.diagramEditForm.invalid) {
+      this.diagramEditForm.markAllAsTouched();
+      return;
+    }
+    this.isSubmitting.set(true);
+    this.diagramApi.update(diagram.id, { ...this.diagramEditForm.getRawValue(), version: diagram.version }).subscribe({
+      next: (updatedDiagram) => {
+        this.diagram.set(updatedDiagram);
+        this.isEditDiagramDialogOpen.set(false);
+        this.successMessage.set('El diagrama fue actualizado correctamente.');
+        this.isSubmitting.set(false);
+      },
+      error: (error: unknown) => {
+        this.handleDiagramConflict(error, 'No pudimos actualizar el diagrama.');
+        this.isSubmitting.set(false);
+      },
+    });
+  }
+
+  requestDiagramDeletion(): void {
+    if (!this.ensureCanEdit()) return;
+    this.isDeleteDiagramDialogOpen.set(true);
+  }
+
+  cancelDiagramDeletion(): void { this.isDeleteDiagramDialogOpen.set(false); }
+
+  deleteDiagram(): void {
+    if (!this.ensureCanEdit()) return;
+    const diagram = this.diagram();
+    if (!diagram) return;
+    this.isSubmitting.set(true);
+    this.diagramApi.delete(diagram.id, diagram.version).subscribe({
+      next: () => this.router.navigate(['/projects', diagram.projectId]),
+      error: (error: unknown) => {
+        this.handleDiagramConflict(error, 'No pudimos eliminar el diagrama.');
+        this.isSubmitting.set(false);
+      },
+    });
+  }
+
   openAssociationClassDialog(): void {
+    if (!this.ensureCanEdit()) return;
     if (this.classes().length < 2) {
       this.errorMessage.set('Crea al menos dos clases antes de agregar una clase intermedia.');
       return;
@@ -169,6 +355,7 @@ export class DiagramEditorPage {
   }
 
   prepareAssociationClassRelation(): void {
+    if (!this.ensureCanEdit()) return;
     if (this.associationClassForm.invalid) {
       this.associationClassForm.markAllAsTouched();
       return;
@@ -181,6 +368,7 @@ export class DiagramEditorPage {
   }
 
   prepareClassPlacement(): void {
+    if (!this.ensureCanEdit()) return;
     if (this.createForm.invalid) {
       this.createForm.markAllAsTouched();
       return;
@@ -223,6 +411,7 @@ export class DiagramEditorPage {
   }
 
   saveClass(): void {
+    if (!this.ensureCanEdit()) return;
     const umlClass = this.selectedClass();
     if (!umlClass || this.classEditForm.invalid) {
       this.classEditForm.markAllAsTouched();
@@ -232,7 +421,7 @@ export class DiagramEditorPage {
     const formValue = this.classEditForm.getRawValue();
     this.diagramApi.updateClass(umlClass.id, { name: formValue.name, fillColor: umlClass.fillColor, positionX: umlClass.positionX, positionY: umlClass.positionY }).subscribe({
       next: (updatedClass) => {
-        const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? umlClass.fillColor, attributes: umlClass.attributes };
+        const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? umlClass.fillColor, attributes: umlClass.attributes, operations: updatedClass.operations ?? umlClass.operations };
         this.classes.update((classes) => classes.map((item) => item.id === updatedClass.id ? classWithAttributes : item));
         this.selectClass(classWithAttributes);
         this.successMessage.set('La clase fue actualizada.');
@@ -243,6 +432,7 @@ export class DiagramEditorPage {
   }
 
   addAttribute(): void {
+    if (!this.ensureCanEdit()) return;
     const classId = this.attributeEditorClassId();
     const selectedClass = classId
       ? this.classes().find((umlClass) => umlClass.id === classId) ?? null
@@ -271,6 +461,7 @@ export class DiagramEditorPage {
   }
 
   openAttributeEditor(umlClass: UmlClass): void {
+    if (!this.ensureCanEdit()) return;
     this.selectClass(umlClass);
     this.attributeEditorClassId.set(umlClass.id);
     this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE' });
@@ -282,12 +473,87 @@ export class DiagramEditorPage {
   }
 
   startAttributeEdit(attribute: { id: string; name: string; dataType: string; visibility: string }): void {
+    if (!this.ensureCanEdit()) return;
     this.editingAttributeId.set(attribute.id);
     const type = this.attributeTypes.find((item) => item.label === attribute.dataType)?.value ?? 'STRING';
     this.attributeEditForm.reset({ name: attribute.name, dataType: type, visibility: attribute.visibility });
   }
 
+  openOperationEditor(umlClass: UmlClass): void {
+    if (!this.ensureCanEdit()) return;
+    this.selectClass(umlClass);
+    this.operationEditorClassId.set(umlClass.id);
+    this.editingOperationId.set(null);
+    this.operationForm.reset({ name: '', visibility: 'PUBLIC', returnType: 'VOID' });
+    this.resetOperationParameters([]);
+  }
+
+  startOperationEdit(operation: UmlOperation): void {
+    if (!this.ensureCanEdit()) return;
+    this.editingOperationId.set(operation.id);
+    this.operationEditorClassId.set(operation.umlClassId);
+    this.operationForm.reset({
+      name: operation.name,
+      visibility: operation.visibility as 'PUBLIC' | 'PRIVATE' | 'PROTECTED',
+      returnType: this.returnTypeValue(operation.returnType),
+    });
+    this.resetOperationParameters(operation.parameters.map((parameter) => ({
+      name: parameter.name,
+      dataType: this.attributeTypeValue(parameter.dataType),
+    })));
+  }
+
+  addOperationParameter(): void {
+    if (this.operationParameters.length >= 10) {
+      this.errorMessage.set('Una operación puede tener como máximo 10 parámetros.');
+      return;
+    }
+    this.operationParameters.push(this.createOperationParameterForm());
+  }
+
+  removeOperationParameter(index: number): void {
+    this.operationParameters.removeAt(index);
+  }
+
+  saveOperation(): void {
+    if (!this.ensureCanEdit()) return;
+    const classId = this.operationEditorClassId();
+    const operationId = this.editingOperationId();
+    const umlClass = classId ? this.classes().find((item) => item.id === classId) ?? null : null;
+    if (!umlClass || this.operationForm.invalid || this.operationParameters.invalid) {
+      this.operationForm.markAllAsTouched();
+      this.operationParameters.markAllAsTouched();
+      return;
+    }
+    const request = { ...this.operationForm.getRawValue(), parameters: this.operationParameters.getRawValue() };
+    this.isSubmitting.set(true);
+    const saveRequest = operationId
+      ? this.diagramApi.updateOperation(operationId, request)
+      : this.diagramApi.createOperation(umlClass.id, request);
+    saveRequest.subscribe({
+      next: (operation) => {
+        this.classes.update((classes) => classes.map((item) => item.id === umlClass.id
+          ? { ...item, operations: operationId
+            ? item.operations.map((existing) => existing.id === operation.id ? operation : existing)
+            : [...item.operations, operation] }
+          : item));
+        this.closeOperationEditor();
+        this.successMessage.set(operationId ? 'La operación fue actualizada.' : `La operación “${operation.name}” fue agregada.`);
+        this.isSubmitting.set(false);
+      },
+      error: () => { this.errorMessage.set('No pudimos guardar la operación. Revisa sus datos e inténtalo nuevamente.'); this.isSubmitting.set(false); },
+    });
+  }
+
+  closeOperationEditor(): void {
+    this.operationEditorClassId.set(null);
+    this.editingOperationId.set(null);
+    this.operationForm.reset({ name: '', visibility: 'PUBLIC', returnType: 'VOID' });
+    this.resetOperationParameters([]);
+  }
+
   saveAttributeEdit(): void {
+    if (!this.ensureCanEdit()) return;
     const umlClass = this.selectedClass();
     const attributeId = this.editingAttributeId();
     if (!umlClass || !attributeId || this.attributeEditForm.invalid) {
@@ -338,6 +604,7 @@ export class DiagramEditorPage {
   }
 
   onCanvasPointerDown(event: PointerEvent, canvas: HTMLElement): void {
+    if (!this.canEdit()) return;
     if (this.editorMode() === 'draw') {
       this.beginDrawing(this.pointFromEvent(event, canvas));
       return;
@@ -355,6 +622,10 @@ export class DiagramEditorPage {
   }
 
   onClassPointerDown(event: PointerEvent, umlClass: UmlClass, canvas: HTMLElement): void {
+    if (!this.canEdit()) {
+      this.selectClass(umlClass);
+      return;
+    }
     if (this.editorMode() === 'draw') {
       this.beginDrawing(this.pointFromEvent(event, canvas));
       return;
@@ -381,6 +652,9 @@ export class DiagramEditorPage {
     const point = this.pointFromEvent(event, canvas);
     this.dragOffsetX = point.x - umlClass.positionX;
     this.dragOffsetY = point.y - umlClass.positionY;
+    this.collaboration.publishEphemeral('ELEMENT_INTERACTION', {
+      elementId: umlClass.id, elementType: 'CLASS', state: 'DRAGGING',
+    });
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     event.preventDefault();
   }
@@ -408,8 +682,14 @@ export class DiagramEditorPage {
   }
 
   finishDrag(): void {
+    if (!this.canEdit()) return;
     const draggedClass = this.classes().find((umlClass) => umlClass.id === this.draggedClassId);
     this.draggedClassId = null;
+    if (draggedClass) {
+      this.collaboration.publishEphemeral('ELEMENT_INTERACTION', {
+        elementId: draggedClass.id, elementType: 'CLASS', state: 'IDLE',
+      });
+    }
     if (!draggedClass) {
       return;
     }
@@ -440,23 +720,33 @@ export class DiagramEditorPage {
   }
 
   toggleDrawingMode(): void {
+    if (!this.ensureCanEdit()) return;
     if (this.editorMode() === 'draw') {
       this.editorMode.set('select');
       this.currentDrawing.set(null);
+      this.collaboration.publishEphemeral('DRAWING_PREVIEW_CLEARED', null);
       return;
     }
     this.cancelEditorAction();
     this.editorMode.set('draw');
-    this.successMessage.set('Lápiz activo: dibuja libremente en el lienzo. Los trazos son temporales.');
+    this.successMessage.set('Lápiz activo: cada trazo se comparte al soltarlo.');
   }
 
   clearDrawings(): void {
-    this.freehandPaths.set([]);
+    if (!this.ensureCanEdit()) return;
     this.currentDrawing.set(null);
-    this.successMessage.set('Los trazos temporales fueron limpiados.');
+    if (!this.diagramId || this.freehandPaths().length === 0) return;
+    this.diagramApi.clearDrawings(this.diagramId).subscribe({
+      next: () => {
+        this.freehandPaths.set([]);
+        this.successMessage.set('Los trazos compartidos fueron eliminados.');
+      },
+      error: () => this.errorMessage.set('No pudimos eliminar los trazos compartidos.'),
+    });
   }
 
   toggleEraserMode(): void {
+    if (!this.ensureCanEdit()) return;
     if (this.editorMode() === 'erase') {
       this.editorMode.set('select');
       return;
@@ -473,6 +763,7 @@ export class DiagramEditorPage {
   zoomPercentage(): number { return Math.round(this.zoom() * 100); }
 
   applyClassColor(fillColor: string | null): void {
+    if (!this.ensureCanEdit()) return;
     const umlClass = this.selectedClass();
     if (!umlClass) return;
     this.isSubmitting.set(true);
@@ -483,7 +774,7 @@ export class DiagramEditorPage {
       fillColor,
     }).subscribe({
       next: (updatedClass) => {
-        const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? fillColor, attributes: umlClass.attributes };
+        const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? fillColor, attributes: umlClass.attributes, operations: updatedClass.operations ?? umlClass.operations };
         this.classes.update((classes) => classes.map((item) => item.id === updatedClass.id ? classWithAttributes : item));
         this.selectClass(classWithAttributes);
         this.successMessage.set('El color de la clase fue actualizado.');
@@ -494,6 +785,7 @@ export class DiagramEditorPage {
   }
 
   openRelationLabelEditor(relation: UmlRelation): void {
+    if (!this.ensureCanEdit()) return;
     this.selectRelation(relation);
     this.editingRelationLabelId.set(relation.id);
     this.relationLabelForm.reset({ label: relation.label ?? '' });
@@ -502,6 +794,7 @@ export class DiagramEditorPage {
   cancelRelationLabelEdit(): void { this.editingRelationLabelId.set(null); }
 
   saveRelationLabel(relation: UmlRelation): void {
+    if (!this.ensureCanEdit()) return;
     const label = this.relationLabelForm.controls.label.value.trim();
     this.isSubmitting.set(true);
     this.diagramApi.updateRelation(relation.id, {
@@ -528,6 +821,7 @@ export class DiagramEditorPage {
   }
 
   openCanvasCardinalityEditor(relation: UmlRelation, endpoint: CardinalityEndpoint): void {
+    if (!this.ensureCanEdit()) return;
     const value = endpoint === 'source' ? relation.sourceCardinality : relation.targetCardinality;
     if (!value) return;
     this.selectRelation(relation);
@@ -541,6 +835,7 @@ export class DiagramEditorPage {
   }
 
   saveCanvasCardinality(relation: UmlRelation, endpoint: CardinalityEndpoint): void {
+    if (!this.ensureCanEdit()) return;
     const value = this.canvasCardinalityForm.controls.value.value;
     const sourceCardinality = endpoint === 'source' ? value : relation.sourceCardinality;
     const targetCardinality = endpoint === 'target' ? value : relation.targetCardinality;
@@ -570,11 +865,85 @@ export class DiagramEditorPage {
 
   dismissError(): void { this.errorMessage.set(''); }
 
+  collaborationStatusLabel(): string {
+    return {
+      connecting: 'Conectando colaboración…',
+      connected: 'Colaboración conectada',
+      reconnecting: 'Reconectando colaboración…',
+      error: 'Colaboración no disponible',
+      disconnected: 'Colaboración desconectada',
+    }[this.collaborationState()];
+  }
+
+  handleCollaborationEvent(event: DiagramEvent): void {
+    const actor = event.actor;
+    if (event.diagramId !== this.diagramId || !actor || actor.userId === this.authSession.user()?.userId) return;
+    if (event.type === 'DRAWING_PREVIEW') {
+      const svgPath = this.stringPayload(event.payload, 'svgPath');
+      if (svgPath) this.remoteDrawingPreviews.update((previews) => [
+        ...previews.filter((preview) => preview.userId !== actor.userId),
+        { userId: actor.userId, name: actor.name, svgPath },
+      ]);
+      return;
+    }
+    if (event.type === 'DRAWING_PREVIEW_CLEARED') {
+      this.clearRemoteDrawingPreview(actor.userId);
+      return;
+    }
+    if (event.type === 'ELEMENT_INTERACTION') {
+      this.updateRemoteClassInteraction(actor.userId, actor.name, event.payload);
+      return;
+    }
+    if (event.type !== 'DIAGRAM_CHANGED') return;
+    this.clearRemoteDrawingPreview(actor.userId);
+    this.loadDiagram();
+    this.addCollaborationActivity(actor.name, typeof event.payload === 'string' ? event.payload : 'actualizó el diagrama');
+  }
+
+  remoteClassColor(classId: string): string | null {
+    const interaction = this.remoteClassInteractions().find((item) => item.classId === classId);
+    return interaction ? this.collaborationColor(interaction.userId) : null;
+  }
+
+  isClassInteractedRemotely(classId: string): boolean {
+    return this.remoteClassInteractions().some((item) => item.classId === classId);
+  }
+
+  private handleDiagramConflict(error: unknown, fallbackMessage: string): void {
+    if (isVersionConflict(error)) {
+      this.loadDiagram();
+      this.closeEditDiagramDialog();
+      this.cancelDiagramDeletion();
+      this.errorMessage.set('El diagrama cambió en otra sesión. Recargamos sus datos antes de permitir otro cambio.');
+      return;
+    }
+    this.errorMessage.set(fallbackMessage);
+  }
+
+  private loadProjectRole(projectId: string): void {
+    this.projectApi.findMembers(projectId).subscribe({
+      next: (members) => {
+        const currentUserId = this.authSession.user()?.userId;
+        this.projectRole.set(members.find((member) => member.userId === currentUserId)?.role ?? null);
+      },
+      error: () => this.projectRole.set(null),
+    });
+  }
+
+  private ensureCanEdit(): boolean {
+    if (this.canEdit()) return true;
+    this.errorMessage.set('Este proyecto es de solo lectura para tu cuenta.');
+    return false;
+  }
+
   relationGeometry(relation: UmlRelation): RelationGeometry | null {
     const source = this.classes().find((umlClass) => umlClass.id === relation.sourceClassId);
     const target = this.classes().find((umlClass) => umlClass.id === relation.targetClassId);
     if (!source || !target) {
       return null;
+    }
+    if (source.id === target.id) {
+      return this.selfRelationGeometry(source);
     }
     const sourceCenter = { x: source.positionX + 100, y: source.positionY + this.umlClassHeight(source) / 2 };
     const targetCenter = { x: target.positionX + 100, y: target.positionY + this.umlClassHeight(target) / 2 };
@@ -606,12 +975,13 @@ export class DiagramEditorPage {
   }
 
   activateRelationTool(type: RelationType, createsAssociationClass = false): void {
+    if (!this.ensureCanEdit()) return;
     if (createsAssociationClass) {
       this.openAssociationClassDialog();
       return;
     }
-    if (this.classes().length < 2) {
-      this.errorMessage.set('Crea al menos dos clases antes de establecer una relación.');
+    if (this.classes().length === 0) {
+      this.errorMessage.set('Crea una clase antes de establecer una relación.');
       return;
     }
     this.relationForm.reset({
@@ -645,11 +1015,12 @@ export class DiagramEditorPage {
   }
 
   saveRelation(): void {
+    if (!this.ensureCanEdit()) return;
     const relation = this.selectedRelation();
     const request = this.relationEditForm.getRawValue();
-    if (!relation || this.relationEditForm.invalid || request.sourceClassId === request.targetClassId) {
+    if (!relation || this.relationEditForm.invalid || (request.sourceClassId === request.targetClassId && request.associationClassId)) {
       this.relationEditForm.markAllAsTouched();
-      this.errorMessage.set('Selecciona dos clases diferentes y completa los datos de la relación.');
+      this.errorMessage.set('Completa los datos de la relación. Una clase intermedia requiere dos clases diferentes.');
       return;
     }
     const supportsCardinality = this.relationSupportsCardinality(request.type);
@@ -681,11 +1052,15 @@ export class DiagramEditorPage {
     });
   }
 
-  requestDelete(target: DeleteTarget): void { this.deleteTarget.set(target); }
+  requestDelete(target: DeleteTarget): void {
+    if (!this.ensureCanEdit()) return;
+    this.deleteTarget.set(target);
+  }
 
   cancelDelete(): void { this.deleteTarget.set(null); }
 
   confirmDelete(): void {
+    if (!this.ensureCanEdit()) return;
     const target = this.deleteTarget();
     if (!target) return;
     this.isSubmitting.set(true);
@@ -697,6 +1072,9 @@ export class DiagramEditorPage {
       } else if (target.kind === 'attribute') {
         this.classes.update((classes) => classes.map((item) => ({ ...item, attributes: item.attributes.filter((attribute) => attribute.id !== target.id) })));
         this.editingAttributeId.set(null);
+      } else if (target.kind === 'operation') {
+        this.classes.update((classes) => classes.map((item) => ({ ...item, operations: item.operations.filter((operation) => operation.id !== target.id) })));
+        this.editingOperationId.set(null);
       } else {
         this.relations.update((relations) => relations.filter((item) => item.id !== target.id));
         this.selectedRelationId.set(null);
@@ -709,6 +1087,7 @@ export class DiagramEditorPage {
     const onError = (): void => { this.errorMessage.set(`No pudimos eliminar ${target.label.toLowerCase()}.`); this.isSubmitting.set(false); };
     if (target.kind === 'class') this.diagramApi.deleteClass(target.id).subscribe({ next: onSuccess, error: onError });
     else if (target.kind === 'attribute') this.diagramApi.deleteAttribute(target.id).subscribe({ next: onSuccess, error: onError });
+    else if (target.kind === 'operation') this.diagramApi.deleteOperation(target.id).subscribe({ next: onSuccess, error: onError });
     else this.diagramApi.deleteRelation(target.id).subscribe({ next: onSuccess, error: onError });
   }
 
@@ -756,14 +1135,19 @@ export class DiagramEditorPage {
 
   private completeRelationDrag(targetClass: UmlClass): void {
     const sourceClassId = this.relationSourceId();
-    if (!this.diagramId || !sourceClassId || sourceClassId === targetClass.id) {
-      this.errorMessage.set('Arrastra la relación hasta una clase distinta de la clase de origen.');
+    if (!this.diagramId || !sourceClassId) {
+      this.errorMessage.set('Selecciona una clase de origen y una clase de destino.');
       this.cancelEditorAction();
       return;
     }
     const request = this.relationForm.getRawValue();
     this.isSubmitting.set(true);
     if (this.isCreatingAssociationClass()) {
+      if (sourceClassId === targetClass.id) {
+        this.errorMessage.set('La clase intermedia requiere dos clases diferentes.');
+        this.cancelEditorAction();
+        return;
+      }
       const sourceClass = this.classes().find((umlClass) => umlClass.id === sourceClassId);
       const name = this.pendingAssociationClassName();
       if (!sourceClass || !name) {
@@ -826,6 +1210,36 @@ export class DiagramEditorPage {
     return ({ ASSOCIATION: 'Asociación', AGGREGATION: 'Agregación', COMPOSITION: 'Composición', GENERALIZATION: 'Generalización / herencia', REALIZATION: 'Realización', DEPENDENCY: 'Dependencia' })[type];
   }
 
+  activityTimestamp(value: string): string {
+    return new Intl.DateTimeFormat('es-BO', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+  }
+
+  private selfRelationGeometry(umlClass: UmlClass): RelationGeometry {
+    const right = umlClass.positionX + 200;
+    const top = umlClass.positionY;
+    const height = this.umlClassHeight(umlClass);
+    const sourcePoint = { x: right, y: top + Math.min(30, height * 0.3) };
+    const targetPoint = { x: right, y: top + Math.max(height - 30, height * 0.7) };
+    const outerX = right + 58;
+    const labelY = top + height / 2;
+    const points = [sourcePoint, { x: outerX, y: sourcePoint.y }, { x: outerX, y: targetPoint.y }, targetPoint]
+      .map((point) => `${point.x},${point.y}`).join(' ');
+    return {
+      x1: sourcePoint.x,
+      y1: sourcePoint.y,
+      x2: targetPoint.x,
+      y2: targetPoint.y,
+      points,
+      alignmentPoints: [],
+      sourceLabelX: outerX + 18,
+      sourceLabelY: sourcePoint.y + 3,
+      targetLabelX: outerX + 18,
+      targetLabelY: targetPoint.y + 3,
+      labelX: outerX + 9,
+      labelY: labelY - 8,
+    };
+  }
+
   private pointFromEvent(event: PointerEvent, canvas: HTMLElement): CanvasPoint {
     const bounds = canvas.getBoundingClientRect();
     return {
@@ -835,18 +1249,100 @@ export class DiagramEditorPage {
   }
 
   private beginDrawing(point: CanvasPoint): void {
-    this.currentDrawing.set(`M ${point.x} ${point.y}`);
+    const drawing = `M ${point.x} ${point.y}`;
+    this.currentDrawing.set(drawing);
+    this.publishDrawingPreview(drawing, true);
   }
 
   private extendDrawing(point: CanvasPoint): void {
     const current = this.currentDrawing();
-    if (current) this.currentDrawing.set(`${current} L ${point.x} ${point.y}`);
+    if (current) {
+      const drawing = `${current} L ${point.x} ${point.y}`;
+      this.currentDrawing.set(drawing);
+      this.publishDrawingPreview(drawing);
+    }
   }
 
   private finishDrawing(): void {
     const current = this.currentDrawing();
-    if (current) this.freehandPaths.update((paths) => [...paths, current]);
     this.currentDrawing.set(null);
+    if (!current || !this.diagramId) return;
+    this.diagramApi.createDrawing(this.diagramId, current).subscribe({
+      next: (drawing) => {
+        this.freehandPaths.update((drawings) => [...drawings, drawing]);
+        this.collaboration.publishEphemeral('DRAWING_PREVIEW_CLEARED', null);
+      },
+      error: () => {
+        this.collaboration.publishEphemeral('DRAWING_PREVIEW_CLEARED', null);
+        this.errorMessage.set('No pudimos compartir este trazo. Inténtalo nuevamente.');
+      },
+    });
+  }
+
+  private publishDrawingPreview(svgPath: string, force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastDrawingPreviewAt < 50) return;
+    this.lastDrawingPreviewAt = now;
+    this.collaboration.publishEphemeral('DRAWING_PREVIEW', { svgPath });
+  }
+
+  private clearRemoteDrawingPreview(userId: string): void {
+    this.remoteDrawingPreviews.update((previews) => previews.filter((preview) => preview.userId !== userId));
+  }
+
+  private updateRemoteClassInteraction(userId: string, name: string, payload: unknown): void {
+    const classId = this.stringPayload(payload, 'elementId');
+    const state = this.stringPayload(payload, 'state');
+    if (!classId || !state) return;
+    this.clearRemoteInteractionTimeout(userId);
+    if (state === 'IDLE') {
+      this.remoteClassInteractions.update((items) => items.filter((item) => item.userId !== userId));
+      return;
+    }
+    if (state !== 'DRAGGING') return;
+    this.remoteClassInteractions.update((items) => [
+      ...items.filter((item) => item.userId !== userId),
+      { userId, name, classId },
+    ]);
+    this.remoteInteractionTimeouts.set(userId, setTimeout(() => {
+      this.remoteClassInteractions.update((items) => items.filter((item) => item.userId !== userId));
+      this.remoteInteractionTimeouts.delete(userId);
+    }, 4_000));
+  }
+
+  private clearRemoteInteractionTimeout(userId: string): void {
+    const timeout = this.remoteInteractionTimeouts.get(userId);
+    if (timeout) clearTimeout(timeout);
+    this.remoteInteractionTimeouts.delete(userId);
+  }
+
+  private addCollaborationActivity(name: string, action: string): void {
+    const id = `${name}-${Date.now()}`;
+    this.collaborationActivity.update((items) => [{ id, name, action }, ...items].slice(0, 3));
+    this.activityTimeouts.set(id, setTimeout(() => {
+      this.collaborationActivity.update((items) => items.filter((item) => item.id !== id));
+      this.activityTimeouts.delete(id);
+    }, 6_000));
+  }
+
+  private stringPayload(payload: unknown, key: string): string | null {
+    if (typeof payload !== 'object' || payload === null) return null;
+    const value = (payload as Record<string, unknown>)[key];
+    return typeof value === 'string' ? value : null;
+  }
+
+  private xml(value: string): string {
+    return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+  }
+
+  private fileNameFrom(name: string): string {
+    return name.trim().replaceAll(/[^a-zA-Z0-9-_]+/g, '-').replaceAll(/^-+|-+$/g, '') || 'diagrama-uml';
+  }
+
+  private collaborationColor(userId: string): string {
+    const colors = ['#7c3aed', '#db2777', '#d97706', '#0891b2', '#16a34a'];
+    const index = [...userId].reduce((total, character) => total + character.charCodeAt(0), 0) % colors.length;
+    return colors[index];
   }
 
   private clearSelection(): void {
@@ -858,11 +1354,50 @@ export class DiagramEditorPage {
   private closeInlineAttributeEditors(): void {
     this.attributeEditorClassId.set(null);
     this.editingAttributeId.set(null);
+    this.closeOperationEditor();
+  }
+
+  operationDeclaration(operation: UmlOperation): string {
+    const parameters = operation.parameters.map((parameter) => `${parameter.name}: ${parameter.dataType}`).join(', ');
+    return `${this.attributeVisibilitySymbol(operation.visibility)} ${operation.name}(${parameters}): ${operation.returnType}`;
+  }
+
+  private createOperationParameterForm() {
+    return this.formBuilder.nonNullable.group({
+      name: ['', [Validators.required, Validators.maxLength(120)]],
+      dataType: ['STRING' as AttributeDataType, Validators.required],
+    });
+  }
+
+  private resetOperationParameters(parameters: { name: string; dataType: AttributeDataType }[]): void {
+    this.operationParameters.clear();
+    parameters.forEach((parameter) => this.operationParameters.push(this.createOperationParameterForm()));
+    this.operationParameters.controls.forEach((control, index) => control.reset(parameters[index]));
+  }
+
+  private attributeTypeValue(displayName: string): AttributeDataType {
+    return this.attributeTypes.find((item) => item.label === displayName)?.value ?? 'STRING';
+  }
+
+  private returnTypeValue(displayName: string): OperationReturnType {
+    return displayName === 'void' ? 'VOID' : this.attributeTypeValue(displayName);
   }
 
   private eraseDrawingAt(point: CanvasPoint): void {
     const tolerance = 12 / this.zoom();
-    this.freehandPaths.update((paths) => paths.filter((path) => !this.pathTouchesPoint(path, point, tolerance)));
+    const drawing = this.freehandPaths().find((item) => this.pathTouchesPoint(item.svgPath, point, tolerance));
+    if (!drawing || !this.diagramId || this.deletingDrawingIds.has(drawing.id)) return;
+    this.deletingDrawingIds.add(drawing.id);
+    this.diagramApi.deleteDrawing(this.diagramId, drawing.id).subscribe({
+      next: () => {
+        this.freehandPaths.update((drawings) => drawings.filter((item) => item.id !== drawing.id));
+        this.deletingDrawingIds.delete(drawing.id);
+      },
+      error: () => {
+        this.deletingDrawingIds.delete(drawing.id);
+        this.errorMessage.set('No pudimos eliminar este trazo compartido.');
+      },
+    });
   }
 
   private pathTouchesPoint(path: string, point: CanvasPoint, tolerance: number): boolean {
@@ -879,6 +1414,7 @@ export class DiagramEditorPage {
   }
 
   addAlignmentPoint(relation: UmlRelation): void {
+    if (!this.ensureCanEdit()) return;
     const geometry = this.relationGeometry(relation);
     if (!geometry) return;
     const alignmentPoints = [...this.alignmentPointsFor(relation), { x: geometry.labelX, y: geometry.labelY + 8 }];
@@ -887,6 +1423,7 @@ export class DiagramEditorPage {
   }
 
   startRelationBendDrag(event: PointerEvent, relation: UmlRelation, index = 0): void {
+    if (!this.ensureCanEdit()) return;
     event.stopPropagation();
     this.selectRelation(relation);
     this.draggedRelationId = relation.id;
@@ -903,6 +1440,7 @@ export class DiagramEditorPage {
   }
 
   private persistAlignmentPoints(relation: UmlRelation): void {
+    if (!this.canEdit()) return;
     this.diagramApi.updateRelation(relation.id, {
       sourceClassId: relation.sourceClassId, targetClassId: relation.targetClassId, type: relation.type,
       label: relation.label, sourceCardinality: relation.sourceCardinality, targetCardinality: relation.targetCardinality,

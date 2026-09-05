@@ -25,6 +25,20 @@ export interface DiagramDetails {
   diagram: Diagram;
   classes: UmlClass[];
   relations: UmlRelation[];
+  drawings: DiagramDrawing[];
+}
+
+export interface DiagramDrawing {
+  id: string;
+  svgPath: string;
+}
+
+export interface DiagramActivity {
+  id: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  createdAt: string;
 }
 
 export interface CreateUmlClassRequest {
@@ -48,6 +62,7 @@ export interface UmlClass {
   fillColor: string | null;
   version: number;
   attributes: UmlAttribute[];
+  operations: UmlOperation[];
 }
 
 export interface UmlAttribute {
@@ -56,6 +71,22 @@ export interface UmlAttribute {
   name: string;
   dataType: string;
   visibility: string;
+}
+
+export interface UmlOperationParameter {
+  id: string;
+  name: string;
+  dataType: string;
+  parameterOrder: number;
+}
+
+export interface UmlOperation {
+  id: string;
+  umlClassId: string;
+  name: string;
+  visibility: string;
+  returnType: string;
+  parameters: UmlOperationParameter[];
 }
 
 export type AttributeDataType =
@@ -67,6 +98,22 @@ export type AttributeDataType =
   | 'UUID'
   | 'LOCAL_DATE'
   | 'LOCAL_DATE_TIME';
+
+export type OperationReturnType = AttributeDataType | 'VOID';
+
+export interface UmlOperationParameterRequest {
+  name: string;
+  dataType: AttributeDataType;
+}
+
+export interface CreateUmlOperationRequest {
+  name: string;
+  visibility: 'PUBLIC' | 'PRIVATE' | 'PROTECTED';
+  returnType: OperationReturnType;
+  parameters: UmlOperationParameterRequest[];
+}
+
+export interface UpdateUmlOperationRequest extends CreateUmlOperationRequest {}
 
 export interface CreateAttributeRequest {
   name: string;
