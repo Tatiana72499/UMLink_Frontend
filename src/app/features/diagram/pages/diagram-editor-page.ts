@@ -116,6 +116,7 @@ export class DiagramEditorPage implements OnDestroy {
     name: ['', [Validators.required, Validators.maxLength(120)]],
     dataType: ['STRING' as AttributeDataType, Validators.required],
     visibility: ['PRIVATE'],
+    primaryKey: [false],
   });
   readonly classEditForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -124,6 +125,7 @@ export class DiagramEditorPage implements OnDestroy {
     name: ['', [Validators.required, Validators.maxLength(120)]],
     dataType: ['STRING' as AttributeDataType, Validators.required],
     visibility: ['PRIVATE'],
+    primaryKey: [false],
   });
   readonly operationForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -241,11 +243,11 @@ export class DiagramEditorPage implements OnDestroy {
         const link = document.createElement('a');
         const objectUrl = URL.createObjectURL(file);
         link.href = objectUrl;
-        link.download = `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : 'xmi'}`;
+        link.download = `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : format === 'PLANT_UML' ? 'puml' : 'xmi'}`;
         link.click();
         URL.revokeObjectURL(objectUrl);
         this.closeExportDialog();
-        this.successMessage.set(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format} fue descargado.`);
+        this.successMessage.set(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format === 'PLANT_UML' ? 'PlantUML' : format} fue descargado.`);
         this.isSubmitting.set(false);
       },
       error: () => {
@@ -434,12 +436,18 @@ export class DiagramEditorPage implements OnDestroy {
       next: (createdAttribute) => {
         this.classes.update((classes) => classes.map((umlClass) =>
           umlClass.id === selectedClass.id
-            ? { ...umlClass, attributes: [...umlClass.attributes, createdAttribute] }
+            ? {
+                ...umlClass,
+                attributes: [
+                  ...umlClass.attributes.map((attribute) => createdAttribute.primaryKey ? { ...attribute, primaryKey: false } : attribute),
+                  createdAttribute,
+                ],
+              }
             : umlClass,
         ));
         this.successMessage.set(`El atributo “${createdAttribute.name}” fue agregado.`);
         this.isSubmitting.set(false);
-        this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE' });
+        this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: false });
       },
       error: () => {
         this.errorMessage.set('No pudimos agregar el atributo. Revisa los datos e inténtalo nuevamente.');
@@ -452,19 +460,19 @@ export class DiagramEditorPage implements OnDestroy {
     if (!this.ensureCanEdit()) return;
     this.selectClass(umlClass);
     this.attributeEditorClassId.set(umlClass.id);
-    this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE' });
+    this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: false });
   }
 
   closeAttributeEditor(): void {
     this.attributeEditorClassId.set(null);
-    this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE' });
+    this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: false });
   }
 
-  startAttributeEdit(attribute: { id: string; name: string; dataType: string; visibility: string }): void {
+  startAttributeEdit(attribute: { id: string; name: string; dataType: string; visibility: string; primaryKey: boolean }): void {
     if (!this.ensureCanEdit()) return;
     this.editingAttributeId.set(attribute.id);
     const type = this.attributeTypes.find((item) => item.label === attribute.dataType)?.value ?? 'STRING';
-    this.attributeEditForm.reset({ name: attribute.name, dataType: type, visibility: attribute.visibility });
+    this.attributeEditForm.reset({ name: attribute.name, dataType: type, visibility: attribute.visibility, primaryKey: attribute.primaryKey });
   }
 
   openOperationEditor(umlClass: UmlClass): void {
@@ -551,7 +559,14 @@ export class DiagramEditorPage implements OnDestroy {
     this.isSubmitting.set(true);
     this.diagramApi.updateAttribute(attributeId, this.attributeEditForm.getRawValue()).subscribe({
       next: (updatedAttribute) => {
-        this.classes.update((classes) => classes.map((item) => item.id === umlClass.id ? { ...item, attributes: item.attributes.map((attribute) => attribute.id === updatedAttribute.id ? updatedAttribute : attribute) } : item));
+        this.classes.update((classes) => classes.map((item) => item.id === umlClass.id
+          ? {
+              ...item,
+              attributes: item.attributes.map((attribute) => attribute.id === updatedAttribute.id
+                ? updatedAttribute
+                : updatedAttribute.primaryKey ? { ...attribute, primaryKey: false } : attribute),
+            }
+          : item));
         this.editingAttributeId.set(null);
         this.successMessage.set('El atributo fue actualizado.');
         this.isSubmitting.set(false);
@@ -594,6 +609,8 @@ export class DiagramEditorPage implements OnDestroy {
   onCanvasPointerDown(event: PointerEvent, canvas: HTMLElement): void {
     if (!this.canEdit()) return;
     if (this.editorMode() === 'draw') {
+      this.capturePointer(canvas, event.pointerId);
+      event.preventDefault();
       this.beginDrawing(this.pointFromEvent(event, canvas));
       return;
     }
@@ -615,6 +632,9 @@ export class DiagramEditorPage implements OnDestroy {
       return;
     }
     if (this.editorMode() === 'draw') {
+      event.stopPropagation();
+      this.capturePointer(canvas, event.pointerId);
+      event.preventDefault();
       this.beginDrawing(this.pointFromEvent(event, canvas));
       return;
     }
@@ -643,7 +663,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.collaboration.publishEphemeral('ELEMENT_INTERACTION', {
       elementId: umlClass.id, elementType: 'CLASS', state: 'DRAGGING',
     });
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.capturePointer(event.currentTarget as HTMLElement, event.pointerId);
     event.preventDefault();
   }
 
@@ -997,6 +1017,32 @@ export class DiagramEditorPage implements OnDestroy {
     return type === 'ASSOCIATION' || type === 'AGGREGATION' || type === 'COMPOSITION' || type === 'DEPENDENCY';
   }
 
+  private hasInvalidRelationEndpoints(sourceClassId: string, targetClassId: string, type: RelationType, associationClassId: string | null): boolean {
+    return sourceClassId === targetClassId && (!!associationClassId || type === 'GENERALIZATION' || type === 'REALIZATION' || type === 'DEPENDENCY');
+  }
+
+  private relationEndpointError(sourceClassId: string, targetClassId: string, type: RelationType, associationClassId: string | null): string {
+    if (sourceClassId === targetClassId && !!associationClassId) return 'La clase intermedia requiere dos clases diferentes.';
+    if (sourceClassId === targetClassId && (type === 'GENERALIZATION' || type === 'REALIZATION' || type === 'DEPENDENCY')) return 'Este tipo de relación requiere dos clases diferentes.';
+    return 'Completa los datos de la relación.';
+  }
+
+  private wouldCreateGeneralizationCycle(relationId: string | null, sourceClassId: string, targetClassId: string, type: RelationType): boolean {
+    if (type !== 'GENERALIZATION') return false;
+    const pending = [targetClassId];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const current = pending.shift()!;
+      if (current === sourceClassId) return true;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      this.relations()
+        .filter((relation) => relation.id !== relationId && relation.type === 'GENERALIZATION' && relation.sourceClassId === current)
+        .forEach((relation) => pending.push(relation.targetClassId));
+    }
+    return false;
+  }
+
   associationClass(relation: UmlRelation): UmlClass | null {
     if (!relation.associationClassId) return null;
     return this.classes().find((umlClass) => umlClass.id === relation.associationClassId) ?? null;
@@ -1006,9 +1052,13 @@ export class DiagramEditorPage implements OnDestroy {
     if (!this.ensureCanEdit()) return;
     const relation = this.selectedRelation();
     const request = this.relationEditForm.getRawValue();
-    if (!relation || this.relationEditForm.invalid || (request.sourceClassId === request.targetClassId && request.associationClassId)) {
+    if (!relation || this.relationEditForm.invalid || this.hasInvalidRelationEndpoints(request.sourceClassId, request.targetClassId, request.type, request.associationClassId)) {
       this.relationEditForm.markAllAsTouched();
-      this.errorMessage.set('Completa los datos de la relación. Una clase intermedia requiere dos clases diferentes.');
+      this.errorMessage.set(this.relationEndpointError(request.sourceClassId, request.targetClassId, request.type, request.associationClassId));
+      return;
+    }
+    if (this.wouldCreateGeneralizationCycle(relation.id, request.sourceClassId, request.targetClassId, request.type)) {
+      this.errorMessage.set('La generalización no puede crear un ciclo de herencia.');
       return;
     }
     const supportsCardinality = this.relationSupportsCardinality(request.type);
@@ -1023,8 +1073,8 @@ export class DiagramEditorPage implements OnDestroy {
     this.diagramApi.updateRelation(relation.id, {
       ...request,
       label: this.relationSupportsLabel(request.type) ? request.label || null : null,
-      sourceCardinality: supportsCardinality ? request.sourceCardinality : null,
-      targetCardinality: supportsCardinality ? request.targetCardinality : null,
+      sourceCardinality: associationClassId ? '1..*' : supportsCardinality ? request.sourceCardinality : null,
+      targetCardinality: associationClassId ? '1..*' : supportsCardinality ? request.targetCardinality : null,
       bendX: relation.bendX,
       bendY: relation.bendY,
       associationClassId,
@@ -1129,13 +1179,13 @@ export class DiagramEditorPage implements OnDestroy {
       return;
     }
     const request = this.relationForm.getRawValue();
-    this.isSubmitting.set(true);
     if (this.isCreatingAssociationClass()) {
       if (sourceClassId === targetClass.id) {
         this.errorMessage.set('La clase intermedia requiere dos clases diferentes.');
         this.cancelEditorAction();
         return;
       }
+      this.isSubmitting.set(true);
       const sourceClass = this.classes().find((umlClass) => umlClass.id === sourceClassId);
       const name = this.pendingAssociationClassName();
       if (!sourceClass || !name) {
@@ -1169,6 +1219,17 @@ export class DiagramEditorPage implements OnDestroy {
       });
       return;
     }
+    if (this.hasInvalidRelationEndpoints(sourceClassId, targetClass.id, request.type, null)) {
+      this.errorMessage.set(this.relationEndpointError(sourceClassId, targetClass.id, request.type, null));
+      this.cancelEditorAction();
+      return;
+    }
+    if (this.wouldCreateGeneralizationCycle(null, sourceClassId, targetClass.id, request.type)) {
+      this.errorMessage.set('La generalización no puede crear un ciclo de herencia.');
+      this.cancelEditorAction();
+      return;
+    }
+    this.isSubmitting.set(true);
     this.diagramApi.createRelation(this.diagramId, {
       sourceClassId,
       targetClassId: targetClass.id,
@@ -1231,9 +1292,15 @@ export class DiagramEditorPage implements OnDestroy {
   private pointFromEvent(event: PointerEvent, canvas: HTMLElement): CanvasPoint {
     const bounds = canvas.getBoundingClientRect();
     return {
-      x: Math.max(0, (event.clientX - bounds.left) / this.zoom()),
-      y: Math.max(0, (event.clientY - bounds.top) / this.zoom()),
+      x: Math.max(0, (event.clientX - bounds.left + canvas.scrollLeft) / this.zoom()),
+      y: Math.max(0, (event.clientY - bounds.top + canvas.scrollTop) / this.zoom()),
     };
+  }
+
+  private capturePointer(element: Element, pointerId: number): void {
+    if ('setPointerCapture' in element && typeof element.setPointerCapture === 'function') {
+      element.setPointerCapture(pointerId);
+    }
   }
 
   private beginDrawing(point: CanvasPoint): void {
@@ -1412,7 +1479,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.selectRelation(relation);
     this.draggedRelationId = relation.id;
     this.draggedAlignmentPointIndex = index;
-    (event.currentTarget as SVGElement).setPointerCapture(event.pointerId);
+    this.capturePointer(event.currentTarget as SVGElement, event.pointerId);
   }
 
   private finishRelationBendDrag(): void {

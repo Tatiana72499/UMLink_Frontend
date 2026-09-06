@@ -222,6 +222,11 @@
 .canvas.drawing .uml-card {
   cursor: crosshair;
 }
+.canvas.drawing .uml-card,
+.canvas.drawing .relation-layer {
+  pointer-events: none;
+}
+.canvas.drawing { touch-action: none; }
 .canvas-heading {
   align-items: center;
   background: rgba(255, 255, 255, 0.9);
@@ -838,7 +843,7 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
   border-top: 1px solid #dbe8f7;
   display: grid;
   gap: 0.25rem;
-  grid-template-columns: minmax(0, 1fr) 3.1rem;
+  grid-template-columns: minmax(0, 1fr) 3.1rem 3.35rem;
   padding: 0.35rem;
 }
 .inline-attribute-editor input,
@@ -852,6 +857,9 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
   padding: 0.3rem;
 }
 .inline-attribute-editor input { grid-column: 1 / -1; }
+.attribute-key-control { align-items: center; color: #245487; cursor: pointer; display: inline-flex; font-size: .7rem; font-weight: 800; gap: .2rem; justify-content: center; }
+.attribute-key-control input { accent-color: #1765ba; height: .9rem; margin: 0; width: .9rem; }
+.primary-key-marker { color: #9a6200; font-size: .62rem; margin-right: .2rem; }
 .element-action {
   background: transparent;
   border: 0;

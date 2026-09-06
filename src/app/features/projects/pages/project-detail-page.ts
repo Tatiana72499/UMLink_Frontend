@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -165,9 +166,9 @@ export class ProjectDetailPage {
   selectImportFile(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0] ?? null;
     if (!file) return;
-    if (!/\.(xml|xmi)$/i.test(file.name)) {
+    if (!/\.(xml|xmi|puml)$/i.test(file.name)) {
       this.importFile.set(null);
-      this.errorMessage.set('Selecciona un archivo con extensión .xml o .xmi.');
+      this.errorMessage.set('Selecciona un archivo con extensión .xml, .xmi o .puml.');
       return;
     }
     if (file.size > 1_000_000) {
@@ -182,7 +183,7 @@ export class ProjectDetailPage {
   importDiagram(): void {
     const file = this.importFile();
     if (!this.projectId || !this.canEditDiagrams() || !file) {
-      this.errorMessage.set('Selecciona un archivo XML o XMI para importar.');
+      this.errorMessage.set('Selecciona un archivo XML, XMI o PlantUML para importar.');
       return;
     }
     this.isSubmitting.set(true);
@@ -194,11 +195,21 @@ export class ProjectDetailPage {
         this.closeImportDialog();
         this.isSubmitting.set(false);
       },
-      error: () => {
-        this.errorMessage.set('No pudimos importar el archivo. Verifica que sea XML/XMI UML compatible y vuelve a intentarlo.');
+      error: (error: unknown) => {
+        this.errorMessage.set(this.importErrorMessage(error));
         this.isSubmitting.set(false);
       },
     });
+  }
+
+  private importErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && typeof error.error === 'object' && error.error !== null) {
+      const message = (error.error as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) {
+        return `No pudimos importar el archivo: ${message}`;
+      }
+    }
+    return 'No pudimos importar el archivo. Verifica que sea XML, XMI o PlantUML compatible y vuelve a intentarlo.';
   }
 
   openEditProjectDialog(): void {

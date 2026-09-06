@@ -175,14 +175,18 @@
                   }
                 }
                 @if (relation.sourceCardinality) {
-                  @if (isEditingCanvasCardinality(relation.id, 'source')) {
+                  @if (relation.associationClassId) {
+                    <text class="cardinality-label" [attr.x]="geometry.sourceLabelX" [attr.y]="geometry.sourceLabelY">{{ relation.sourceCardinality }}</text>
+                  } @else if (isEditingCanvasCardinality(relation.id, 'source')) {
                     <foreignObject [attr.x]="geometry.sourceLabelX - 30" [attr.y]="geometry.sourceLabelY - 18" width="60" height="30" class="cardinality-foreign">
                       <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de origen" (change)="saveCanvasCardinality(relation, 'source')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
                     </foreignObject>
                   } @else {
                     <text class="cardinality-label" [class.selected]="selectedRelationId() === relation.id" [attr.x]="geometry.sourceLabelX" [attr.y]="geometry.sourceLabelY" role="button" tabindex="0" (click)="openCanvasCardinalityEditor(relation, 'source')" (keydown.enter)="openCanvasCardinalityEditor(relation, 'source')" [attr.aria-label]="'Editar cardinalidad de origen: ' + relation.sourceCardinality">{{ relation.sourceCardinality }}</text>
                   }
-                  @if (isEditingCanvasCardinality(relation.id, 'target')) {
+                  @if (relation.associationClassId) {
+                    <text class="cardinality-label" [attr.x]="geometry.targetLabelX" [attr.y]="geometry.targetLabelY">{{ relation.targetCardinality }}</text>
+                  } @else if (isEditingCanvasCardinality(relation.id, 'target')) {
                     <foreignObject [attr.x]="geometry.targetLabelX - 30" [attr.y]="geometry.targetLabelY - 18" width="60" height="30" class="cardinality-foreign">
                       <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de destino" (change)="saveCanvasCardinality(relation, 'target')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
                     </foreignObject>
@@ -242,14 +246,15 @@
                   @for (attribute of umlClass.attributes; track attribute.id) {
                     <li [class.editing]="editingAttributeId() === attribute.id">
                       @if (editingAttributeId() === attribute.id) {
-                        <form class="inline-attribute-editor" [formGroup]="attributeEditForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="saveAttributeEdit()">
+                        <form class="inline-attribute-editor" [formGroup]="attributeEditForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); saveAttributeEdit()" (ngSubmit)="saveAttributeEdit()">
                           <label [attr.for]="'edit-attribute-' + attribute.id" class="visually-hidden">Editar atributo UML</label>
                           <input [id]="'edit-attribute-' + attribute.id" formControlName="name" placeholder="nombre" />
                           <select formControlName="dataType" aria-label="Tipo de atributo">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
                           <select formControlName="visibility" aria-label="Visibilidad"><option value="PRIVATE">−</option><option value="PUBLIC">+</option><option value="PROTECTED">#</option></select>
+                          <label class="attribute-key-control" title="Llave primaria única por clase"><input type="checkbox" formControlName="primaryKey" aria-label="Marcar como llave primaria única" /> <span>PK</span></label>
                         </form>
                       } @else {
-                        <span>{{ attributeVisibilitySymbol(attribute.visibility) }} {{ attribute.name }}: {{ attribute.dataType }}</span>
+                        <span>@if (attribute.primaryKey) { <b class="primary-key-marker" aria-label="Llave primaria">PK</b> } {{ attributeVisibilitySymbol(attribute.visibility) }} {{ attribute.name }}: {{ attribute.dataType }}</span>
                         <button class="element-action" type="button" (pointerdown)="$event.stopPropagation()" (click)="startAttributeEdit(attribute)" aria-label="Editar atributo">✎</button>
                         <button class="element-action danger" type="button" (pointerdown)="$event.stopPropagation()" (click)="requestDelete({ kind: 'attribute', id: attribute.id, label: 'El atributo' })" aria-label="Eliminar atributo" title="Eliminar atributo">🗑</button>
                       }
@@ -258,11 +263,12 @@
                 </ul>
               }
               @if (attributeEditorClassId() === umlClass.id) {
-                <form class="inline-attribute-editor" [formGroup]="attributeLineForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="addAttribute()">
+                <form class="inline-attribute-editor" [formGroup]="attributeLineForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); addAttribute()" (ngSubmit)="addAttribute()">
                   <label [attr.for]="'attribute-' + umlClass.id" class="visually-hidden">Atributo UML</label>
                   <input [id]="'attribute-' + umlClass.id" formControlName="name" placeholder="nombre" autocomplete="off" />
                   <select formControlName="dataType" aria-label="Tipo de atributo">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
                   <select formControlName="visibility" aria-label="Visibilidad"><option value="PRIVATE">−</option><option value="PUBLIC">+</option><option value="PROTECTED">#</option></select>
+                  <label class="attribute-key-control" title="Llave primaria única por clase"><input type="checkbox" formControlName="primaryKey" aria-label="Marcar como llave primaria única" /> <span>PK</span></label>
                 </form>
                 @if (attributeLineForm.touched && attributeLineForm.invalid) { <p class="attribute-error">Escribe un nombre para el atributo.</p> }
               } @else {
@@ -360,7 +366,7 @@
         </section>
         @if (selectedClass(); as selectedClass) {
           <p class="selection-label">CLASE UML</p>
-          <form class="class-editor" [formGroup]="classEditForm" (ngSubmit)="saveClass()">
+          <form class="class-editor" [formGroup]="classEditForm" (keydown.enter)="$event.preventDefault(); saveClass()" (ngSubmit)="saveClass()">
             <label>Nombre de la clase<input formControlName="name" /></label>
             @if (classEditForm.invalid && classEditForm.touched) { <p class="field-error">El nombre es obligatorio.</p> }
             <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar clase</button>
@@ -378,7 +384,7 @@
             <button class="relation-summary" [class.selected]="selectedRelationId() === relation.id" type="button" (click)="selectRelation(relation)">{{ relationLabel(relation.type) }}@if (relation.sourceCardinality) { · {{ relation.sourceCardinality }} → {{ relation.targetCardinality }} }</button>
           }
           @if (selectedRelation(); as selectedRelation) {
-            <form class="relation-editor" [formGroup]="relationEditForm" (ngSubmit)="saveRelation()">
+            <form class="relation-editor" [formGroup]="relationEditForm" (keydown.enter)="$event.preventDefault(); saveRelation()" (ngSubmit)="saveRelation()">
               <label>Origen<select formControlName="sourceClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
               <label>Destino<select formControlName="targetClassId">@for (umlClass of classes(); track umlClass.id) { <option [value]="umlClass.id">{{ umlClass.name }}</option> }</select></label>
               <label>Tipo<select formControlName="type">@for (relationTool of relationTools; track relationTool.type) { <option [value]="relationTool.type">{{ relationTool.label }}</option> }</select></label>
@@ -414,7 +420,7 @@
   }
 
   <ng-template #operationEditor let-umlClass="umlClass">
-    <form class="inline-operation-editor" [formGroup]="operationForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (ngSubmit)="saveOperation()">
+    <form class="inline-operation-editor" [formGroup]="operationForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); saveOperation()" (ngSubmit)="saveOperation()">
       <label class="visually-hidden" [attr.for]="'operation-name-' + umlClass.id">Nombre de operación</label>
       <input [id]="'operation-name-' + umlClass.id" formControlName="name" placeholder="nombreOperación" autocomplete="off" />
       <select formControlName="visibility" aria-label="Visibilidad de la operación"><option value="PUBLIC">+</option><option value="PRIVATE">−</option><option value="PROTECTED">#</option></select>
@@ -551,6 +557,7 @@
         <button type="button" (click)="downloadDiagram('XMI')" [disabled]="isSubmitting()"><strong>XMI UML</strong><small>Clases y relaciones compatibles</small></button>
         <button type="button" (click)="downloadDiagram('EA_XMI')" [disabled]="isSubmitting()"><strong>Enterprise Architect 15</strong><small>Diagrama visual con posiciones</small></button>
         <button type="button" (click)="downloadDiagram('EA_SCRIPT')" [disabled]="isSubmitting()"><strong>Script Enterprise Architect</strong><small>Genera clases y relaciones dentro de EA</small></button>
+        <button type="button" (click)="downloadDiagram('PLANT_UML')" [disabled]="isSubmitting()"><strong>PlantUML</strong><small>Código editable y reutilizable</small></button>
       </div>
     </app-ui-dialog>
   }

@@ -159,12 +159,12 @@ describe('ProjectDetailPage', () => {
     expect(addMemberCalls).toBe(0);
   });
 
-  it('acepta XML/XMI y agrega el diagrama importado al proyecto', () => {
+  it('acepta PlantUML y agrega el diagrama importado al proyecto', () => {
     const fixture = TestBed.createComponent(ProjectDetailPage);
     const component = fixture.componentInstance;
     fixture.detectChanges();
     const input = document.createElement('input');
-    Object.defineProperty(input, 'files', { value: [new File(['<xmi:XMI />'], 'modelo.xmi')] });
+    Object.defineProperty(input, 'files', { value: [new File(['@startuml\nclass Usuario\n@enduml'], 'modelo.puml')] });
 
     component.openImportDialog();
     component.selectImportFile({ target: input } as unknown as Event);
