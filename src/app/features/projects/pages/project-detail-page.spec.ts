@@ -33,6 +33,7 @@ describe('ProjectDetailPage', () => {
   let deleteProjectResponse: Observable<void>;
   let updateDiagramResponse: Observable<Diagram>;
   let deleteDiagramResponse: Observable<void>;
+  let importDiagramResponse: Observable<Diagram>;
   let membersResponse: Observable<ProjectMember[]>;
   let addMemberCalls: number;
   const projectApiStub: Pick<ProjectApiService, 'findById' | 'update' | 'delete' | 'findMembers' | 'addMember'> = {
@@ -42,9 +43,10 @@ describe('ProjectDetailPage', () => {
     findMembers: () => membersResponse,
     addMember: () => { addMemberCalls += 1; return of({ id: 'member-2', userId: 'user-2', name: 'Daniela', email: 'dani@umlink.dev', role: 'EDITOR' }); },
   };
-  const diagramApiStub: Pick<DiagramApiService, 'findByProject' | 'create' | 'update' | 'delete'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'findByProject' | 'create' | 'import' | 'update' | 'delete'> = {
     findByProject: () => diagramsResponse,
     create: () => createResponse,
+    import: () => importDiagramResponse,
     update: () => updateDiagramResponse,
     delete: () => deleteDiagramResponse,
   };
@@ -57,6 +59,7 @@ describe('ProjectDetailPage', () => {
     deleteProjectResponse = of(undefined);
     updateDiagramResponse = of({ ...diagram, name: 'Dominio actualizado', version: 1 });
     deleteDiagramResponse = of(undefined);
+    importDiagramResponse = of({ ...diagram, id: 'diagram-imported', name: 'Importado' });
     addMemberCalls = 0;
     membersResponse = of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]);
     await TestBed.configureTestingModule({
@@ -154,5 +157,21 @@ describe('ProjectDetailPage', () => {
 
     expect(component.inviteError()).toContain('propietaria');
     expect(addMemberCalls).toBe(0);
+  });
+
+  it('acepta XML/XMI y agrega el diagrama importado al proyecto', () => {
+    const fixture = TestBed.createComponent(ProjectDetailPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [new File(['<xmi:XMI />'], 'modelo.xmi')] });
+
+    component.openImportDialog();
+    component.selectImportFile({ target: input } as unknown as Event);
+    component.importDiagram();
+
+    expect(component.importFile()).toBeNull();
+    expect(component.diagrams()[0].name).toBe('Importado');
+    expect(component.successMessage()).toContain('importado');
   });
 });

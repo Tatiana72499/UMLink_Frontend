@@ -67,12 +67,15 @@ describe('DiagramEditorPage', () => {
   let activityResponse: Observable<DiagramActivity[]>;
   let voidResponse: Observable<void>;
   let diagramResponse: Observable<DiagramDetails['diagram']>;
+  let exportResponse: Observable<Blob>;
   const projectApiStub: Pick<ProjectApiService, 'findMembers'> = {
     findMembers: () => of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]),
   };
-  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'findActivity' | 'findDetails' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
     findDetails: () => detailResponse,
     findActivity: () => activityResponse,
+    export: () => exportResponse,
+    import: () => diagramResponse,
     update: () => diagramResponse,
     delete: () => voidResponse,
     createClass: () => classResponse,
@@ -101,6 +104,7 @@ describe('DiagramEditorPage', () => {
     activityResponse = of([]);
     voidResponse = of(undefined);
     diagramResponse = of({ ...details.diagram, name: 'Dominio actualizado', version: 1 });
+    exportResponse = of(new Blob(['<umlinkUml />'], { type: 'application/xml' }));
     await TestBed.configureTestingModule({
       imports: [DiagramEditorPage],
       providers: [
@@ -257,17 +261,14 @@ describe('DiagramEditorPage', () => {
     expect(component.activityHistoryState()).toBe('ready');
   });
 
-  it('genera XML nativo con el contenido del diagrama', () => {
-    detailResponse = of({ ...details, classes: [{ ...umlClass, name: 'Usuario & Cuenta' }], relations: [umlRelation] });
+  it('abre el selector de formatos para descargar desde el backend', () => {
     const fixture = TestBed.createComponent(DiagramEditorPage);
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    const xml = component.buildXmlExport();
+    component.openExportDialog();
 
-    expect(xml).toContain('<umlinkUml');
-    expect(xml).toContain('Usuario &amp; Cuenta');
-    expect(xml).toContain('<relation');
+    expect(component.isExportDialogOpen()).toBe(true);
   });
 
   it('actualiza una clase seleccionada', () => {

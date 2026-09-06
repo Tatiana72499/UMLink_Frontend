@@ -281,6 +281,22 @@ h1 {
   margin-top: 1.5rem;
 }
 .dialog-copy { color: #496b8d; line-height: 1.5; }
+.project-form { display: grid; gap: 1rem; }
+.project-form label { color: #315d89; display: grid; font-size: .84rem; font-weight: 750; gap: .4rem; }
+.project-form label span { color: #6987a3; font-size: .74rem; font-weight: 650; }
+.project-form input,
+.project-form textarea { border: 1px solid #c7def4; border-radius: .55rem; box-sizing: border-box; color: #1c4775; font: inherit; padding: .7rem .75rem; width: 100%; }
+.project-form textarea { min-height: 5.5rem; resize: vertical; }
+.project-form input:focus,
+.project-form textarea:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: none; }
+.project-form footer { align-items: center; display: flex; gap: .7rem; justify-content: flex-end; margin-top: .4rem; }
+.import-file-input { color: #315d89; display: grid; font-size: .82rem; font-weight: 750; gap: .4rem; margin-top: 1rem; }
+.file-picker { align-items: center; background: #f7fbff; border: 1px solid #c7def4; border-radius: .55rem; display: grid; gap: .65rem; grid-template-columns: auto minmax(0, 1fr); min-height: 2.8rem; padding: .35rem; position: relative; }
+.file-picker input { cursor: pointer; inset: 0; opacity: 0; position: absolute; width: 100%; }
+.file-picker-button { background: #eaf3ff; border: 1px solid #b9d7f5; border-radius: .4rem; color: #075fae; font-size: .78rem; font-weight: 800; padding: .48rem .65rem; white-space: nowrap; }
+.file-picker:focus-within { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; }
+.file-picker-name { color: #5e7f9e; font-size: .78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.interchange-hint { color: #6987a3; font-size: .76rem; line-height: 1.45; margin: .55rem 0 0; }
 .share-intro { align-items: flex-start; color: #496b8d; display: flex; gap: 0.7rem; line-height: 1.5; margin-bottom: 1.15rem; }
 .share-intro span { align-items: center; background: #eaf3ff; border-radius: 0.55rem; color: #0767c8; display: inline-flex; font-weight: 900; height: 2rem; justify-content: center; width: 2rem; }
 .share-intro p { margin: 0; }

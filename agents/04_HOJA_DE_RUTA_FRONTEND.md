@@ -117,9 +117,8 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - Panel de asistencia por comandos concretos, nunca generación opaca de todo el modelo.
 - Flujo de confirmación antes de que la IA cambie el diagrama.
 - Comandos de voz con retroalimentación visible y alternativa de teclado.
-- Importación y exportación XML según el formato acordado.
-- [x] Descargar una exportación XML nativa de UMLink que conserva el modelo completo; no sustituye la futura compatibilidad XMI.
-- [ ] Compartir un archivo XMI UML e importar/exportar un subconjunto documentado, compatible primero con Enterprise Architect y otros editores que soporten el mismo perfil XMI.
+- [x] Importar archivos XML UMLink y XMI/UML en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
+- [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual o script de Automation API compatible con Enterprise Architect 15, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.
 
 **Criterio de salida:** cada sugerencia de IA, voz o importación es revisable, reversible y comprensible por la persona usuaria.
 

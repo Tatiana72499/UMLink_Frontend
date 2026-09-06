@@ -33,10 +33,12 @@ export class ProjectDetailPage {
   readonly isCreateDialogOpen = signal(false);
   readonly isEditProjectDialogOpen = signal(false);
   readonly isEditDiagramDialogOpen = signal(false);
+  readonly isImportDialogOpen = signal(false);
   readonly isDeleteProjectDialogOpen = signal(false);
   readonly isShareDialogOpen = signal(false);
   readonly diagramPendingDeletion = signal<Diagram | null>(null);
   readonly editingDiagram = signal<Diagram | null>(null);
+  readonly importFile = signal<File | null>(null);
   readonly members = signal<ProjectMember[]>([]);
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
@@ -146,6 +148,57 @@ export class ProjectDetailPage {
   closeCreateDialog(): void {
     this.isCreateDialogOpen.set(false);
     this.createForm.reset();
+  }
+
+  openImportDialog(): void {
+    if (!this.canEditDiagrams()) return;
+    this.errorMessage.set('');
+    this.importFile.set(null);
+    this.isImportDialogOpen.set(true);
+  }
+
+  closeImportDialog(): void {
+    this.importFile.set(null);
+    this.isImportDialogOpen.set(false);
+  }
+
+  selectImportFile(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (!file) return;
+    if (!/\.(xml|xmi)$/i.test(file.name)) {
+      this.importFile.set(null);
+      this.errorMessage.set('Selecciona un archivo con extensión .xml o .xmi.');
+      return;
+    }
+    if (file.size > 1_000_000) {
+      this.importFile.set(null);
+      this.errorMessage.set('El archivo supera el límite de 1 MB permitido.');
+      return;
+    }
+    this.errorMessage.set('');
+    this.importFile.set(file);
+  }
+
+  importDiagram(): void {
+    const file = this.importFile();
+    if (!this.projectId || !this.canEditDiagrams() || !file) {
+      this.errorMessage.set('Selecciona un archivo XML o XMI para importar.');
+      return;
+    }
+    this.isSubmitting.set(true);
+    this.diagramApi.import(this.projectId, file).subscribe({
+      next: (diagram) => {
+        this.diagrams.update((diagrams) => [diagram, ...diagrams]);
+        this.state.set('ready');
+        this.successMessage.set(`El diagrama “${diagram.name}” fue importado correctamente.`);
+        this.closeImportDialog();
+        this.isSubmitting.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('No pudimos importar el archivo. Verifica que sea XML/XMI UML compatible y vuelve a intentarlo.');
+        this.isSubmitting.set(false);
+      },
+    });
   }
 
   openEditProjectDialog(): void {

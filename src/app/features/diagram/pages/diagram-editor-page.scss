@@ -893,6 +893,18 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
 .icon-only-action { align-items: center; display: inline-flex; justify-content: center; min-width: 2.7rem; }
 .compact-action.icon-only-action { margin-left: auto; width: auto; }
 .delete-dialog > p { color: #496885; line-height: 1.45; }
+.interchange-options { display: grid; gap: .7rem; grid-template-columns: 1fr 1fr; }
+.interchange-options button { background: #f6faff; border: 1px solid #c7def4; border-radius: .65rem; color: #1d4e80; cursor: pointer; padding: .8rem; text-align: left; }
+.interchange-options button:hover,
+.interchange-options button:focus-visible { background: #eaf4ff; border-color: #76afdf; outline: 2px solid #c7e3fb; }
+.interchange-options strong,
+.interchange-options small { display: block; }
+.interchange-options small,
+.interchange-hint,
+.import-file-name { color: #547493; font-size: .78rem; line-height: 1.4; }
+.import-file-input { color: #315d89; display: grid; font-size: .82rem; font-weight: 750; gap: .35rem; margin-top: .9rem; }
+.import-file-input input { border: 1px solid #c7def4; border-radius: .45rem; color: #315d89; padding: .5rem; }
+.import-file-name { background: #eef6ff; border-radius: .35rem; padding: .45rem .55rem; }
 .visually-hidden {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);

@@ -24,6 +24,7 @@ import {
   CreateUmlOperationRequest,
   UpdateUmlOperationRequest,
   UmlRelation,
+  InterchangeFormat,
 } from '../models/diagram.model';
 
 @Injectable({ providedIn: 'root' })
@@ -48,6 +49,19 @@ export class DiagramApiService {
 
   findDetails(diagramId: string): Observable<DiagramDetails> {
     return this.http.get<DiagramDetails>(`${this.apiUrl}/diagrams/${diagramId}`);
+  }
+
+  export(diagramId: string, format: InterchangeFormat): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/diagrams/${diagramId}/export`, {
+      params: { format },
+      responseType: 'blob',
+    });
+  }
+
+  import(projectId: string, file: File): Observable<Diagram> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<Diagram>(`${this.apiUrl}/projects/${projectId}/diagrams/import`, body);
   }
 
   findActivity(diagramId: string): Observable<DiagramActivity[]> {

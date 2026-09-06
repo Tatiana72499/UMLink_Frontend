@@ -23,7 +23,7 @@
         </div>
       </div>
       <div class="toolbar-actions">
-        <app-ui-button variant="secondary" (pressed)="downloadXml()">Descargar</app-ui-button>
+        <app-ui-button variant="secondary" (pressed)="openExportDialog()">Descargar</app-ui-button>
         @if (projectRole() === 'OWNER') {
           <app-ui-button variant="secondary" (pressed)="openProjectSharing()">Compartir</app-ui-button>
         }
@@ -540,6 +540,18 @@
         <app-ui-button variant="secondary" (pressed)="cancelDiagramDeletion()">Cancelar</app-ui-button>
         <button class="danger-action icon-only-action" type="button" [disabled]="isSubmitting()" (click)="deleteDiagram()" aria-label="Confirmar eliminación del diagrama" title="Eliminar diagrama">🗑</button>
       </footer>
+    </app-ui-dialog>
+  }
+
+  @if (isExportDialogOpen()) {
+    <app-ui-dialog [open]="isExportDialogOpen()" eyebrow="INTEROPERABILIDAD" title="Descargar diagrama" titleId="diagram-export-title" (closed)="closeExportDialog()">
+      <p class="dialog-copy">Elige el formato. XML UMLink conserva posiciones y trazos; XMI UML sirve para otros editores. Si EA no dibuja conectores al importar XMI, usa el script: crea el diagrama con su API interna.</p>
+      <div class="interchange-options">
+        <button type="button" (click)="downloadDiagram('XML')" [disabled]="isSubmitting()"><strong>XML UMLink</strong><small>Modelo completo de UMLink</small></button>
+        <button type="button" (click)="downloadDiagram('XMI')" [disabled]="isSubmitting()"><strong>XMI UML</strong><small>Clases y relaciones compatibles</small></button>
+        <button type="button" (click)="downloadDiagram('EA_XMI')" [disabled]="isSubmitting()"><strong>Enterprise Architect 15</strong><small>Diagrama visual con posiciones</small></button>
+        <button type="button" (click)="downloadDiagram('EA_SCRIPT')" [disabled]="isSubmitting()"><strong>Script Enterprise Architect</strong><small>Genera clases y relaciones dentro de EA</small></button>
+      </div>
     </app-ui-dialog>
   }
 

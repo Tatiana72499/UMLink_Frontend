@@ -17,6 +17,8 @@ PUT      /projects/{id}/members/{memberId}
 DELETE   /projects/{id}/members/{memberId}
 GET/POST /projects/{projectId}/diagrams
 GET      /diagrams/{diagramId}
+GET      /diagrams/{diagramId}/export?format=XML|XMI|EA_XMI|EA_SCRIPT
+POST     /projects/{projectId}/diagrams/import (multipart: file)
 GET      /diagrams/{diagramId}/activity
 PUT      /diagrams/{diagramId}
 DELETE   /diagrams/{diagramId}?version={version}
@@ -55,6 +57,7 @@ DELETE   /relations/{id}
 - Las relaciones exponen `alignmentPoints`, una lista ordenada de hasta 20 puntos `{x, y}` para alinear manualmente el conector. Se mantienen `bendX` y `bendY` solo por compatibilidad. Una asociación puede incluir `associationClassId` para vincular una tercera clase del mismo diagrama; no puede ser una de las dos clases que conecta.
 - `POST /diagrams/{diagramId}/association-classes` recibe dos clases, nombre, posición y color; crea en una sola transacción la asociación muchos-a-muchos sin cardinalidades visibles junto con su clase intermedia, y devuelve ambos elementos.
 - Los detalles de diagrama incluyen `drawings`, una lista de rutas SVG `{ id, svgPath }`. `POST /diagrams/{diagramId}/drawings` crea un trazo; sus eliminaciones son individual o total. Solo `OWNER` y `EDITOR` pueden dibujar, borrar o limpiar.
+- La exportación entrega `XML` UMLink, `XMI` UML genérico, `EA_XMI` o `EA_SCRIPT` para Enterprise Architect 15. La importación recibe archivos `.xml` o `.xmi` de hasta 1 MB, valida XML de forma segura y crea un diagrama nuevo sin sobrescribir el lienzo abierto. XML UMLink conserva posiciones, puntos de alineación y trazos; XMI intercambia el subconjunto de clases, atributos, operaciones, relaciones, cardinalidades y tipos soportados. `EA_XMI` crea un diagrama de clases visual; `EA_SCRIPT` crea elementos, conectores y posiciones mediante la Automation API dentro del paquete seleccionado en EA.
 
 El frontend debe usar los DTOs en `features/projects/models` y `features/diagram/models`. Si el backend cambia un contrato, actualizar ambos lados en la misma tarea y documentar el cambio.
 

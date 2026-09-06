@@ -7,7 +7,7 @@ import { AuthSessionService, isVersionConflict } from '../../../core';
 import { CollaborationWebSocketService, DiagramEvent } from '../../collaboration';
 import { UiButtonComponent, UiDialogComponent } from '../../../shared';
 import { DiagramApiService } from '../data-access/diagram-api.service';
-import { AttributeDataType, Diagram, DiagramActivity, DiagramDrawing, OperationReturnType, RelationAlignmentPoint, RelationType, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
+import { AttributeDataType, Diagram, DiagramActivity, DiagramDrawing, InterchangeFormat, OperationReturnType, RelationAlignmentPoint, RelationType, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
 import { ProjectApiService } from '../../projects/data-access/project-api.service';
 import { ProjectRole } from '../../projects/models/project.model';
 
@@ -53,6 +53,7 @@ export class DiagramEditorPage implements OnDestroy {
   readonly isDeleteDiagramDialogOpen = signal(false);
   readonly isAssociationClassDialogOpen = signal(false);
   readonly isActivityDialogOpen = signal(false);
+  readonly isExportDialogOpen = signal(false);
   readonly isSummaryVisible = signal(true);
   readonly activityHistory = signal<DiagramActivity[]>([]);
   readonly activityHistoryState = signal<ActivityHistoryState>('idle');
@@ -227,44 +228,31 @@ export class DiagramEditorPage implements OnDestroy {
     this.isSummaryVisible.update((visible) => !visible);
   }
 
-  downloadXml(): void {
+  openExportDialog(): void { this.isExportDialogOpen.set(true); }
+
+  closeExportDialog(): void { this.isExportDialogOpen.set(false); }
+
+  downloadDiagram(format: InterchangeFormat): void {
     const diagram = this.diagram();
     if (!diagram) return;
-    const file = new Blob([this.buildXmlExport()], { type: 'application/xml;charset=utf-8' });
-    const link = document.createElement('a');
-    const objectUrl = URL.createObjectURL(file);
-    link.href = objectUrl;
-    link.download = `${this.fileNameFrom(diagram.name)}.umlink.xml`;
-    link.click();
-    URL.revokeObjectURL(objectUrl);
-    this.successMessage.set('El archivo XML del diagrama fue descargado.');
-  }
-
-  buildXmlExport(): string {
-    const diagram = this.diagram();
-    if (!diagram) return '';
-    const classes = this.classes().map((umlClass) => `    <class id="${this.xml(umlClass.id)}" name="${this.xml(umlClass.name)}" positionX="${umlClass.positionX}" positionY="${umlClass.positionY}" fillColor="${this.xml(umlClass.fillColor ?? '')}">
-${umlClass.attributes.map((attribute) => `      <attribute id="${this.xml(attribute.id)}" name="${this.xml(attribute.name)}" dataType="${this.xml(attribute.dataType)}" visibility="${this.xml(attribute.visibility)}" />`).join('\n')}
-${umlClass.operations.map((operation) => `      <operation id="${this.xml(operation.id)}" name="${this.xml(operation.name)}" visibility="${this.xml(operation.visibility)}" returnType="${this.xml(operation.returnType)}">
-${operation.parameters.map((parameter) => `        <parameter id="${this.xml(parameter.id)}" name="${this.xml(parameter.name)}" dataType="${this.xml(parameter.dataType)}" order="${parameter.parameterOrder}" />`).join('\n')}
-      </operation>`).join('\n')}
-    </class>`).join('\n');
-    const relations = this.relations().map((relation) => `    <relation id="${this.xml(relation.id)}" sourceClassId="${this.xml(relation.sourceClassId)}" targetClassId="${this.xml(relation.targetClassId)}" type="${this.xml(relation.type)}" label="${this.xml(relation.label ?? '')}" sourceCardinality="${this.xml(relation.sourceCardinality ?? '')}" targetCardinality="${this.xml(relation.targetCardinality ?? '')}" associationClassId="${this.xml(relation.associationClassId ?? '')}">
-${(relation.alignmentPoints ?? []).map((point) => `      <alignmentPoint x="${point.x}" y="${point.y}" />`).join('\n')}
-    </relation>`).join('\n');
-    const drawings = this.freehandPaths().map((drawing) => `    <drawing id="${this.xml(drawing.id)}" svgPath="${this.xml(drawing.svgPath)}" />`).join('\n');
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<umlinkUml version="1.0" diagramId="${this.xml(diagram.id)}" name="${this.xml(diagram.name)}">
-  <classes>
-${classes}
-  </classes>
-  <relations>
-${relations}
-  </relations>
-  <drawings>
-${drawings}
-  </drawings>
-</umlinkUml>`;
+    this.isSubmitting.set(true);
+    this.diagramApi.export(diagram.id, format).subscribe({
+      next: (file) => {
+        const link = document.createElement('a');
+        const objectUrl = URL.createObjectURL(file);
+        link.href = objectUrl;
+        link.download = `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : 'xmi'}`;
+        link.click();
+        URL.revokeObjectURL(objectUrl);
+        this.closeExportDialog();
+        this.successMessage.set(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format} fue descargado.`);
+        this.isSubmitting.set(false);
+      },
+      error: () => {
+        this.errorMessage.set(`No pudimos descargar el archivo ${format}.`);
+        this.isSubmitting.set(false);
+      },
+    });
   }
 
   openCreateDialog(): void {
@@ -1329,10 +1317,6 @@ ${drawings}
     if (typeof payload !== 'object' || payload === null) return null;
     const value = (payload as Record<string, unknown>)[key];
     return typeof value === 'string' ? value : null;
-  }
-
-  private xml(value: string): string {
-    return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
   }
 
   private fileNameFrom(name: string): string {

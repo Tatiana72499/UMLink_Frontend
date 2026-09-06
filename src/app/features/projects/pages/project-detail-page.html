@@ -14,6 +14,7 @@
       <div class="project-actions">
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openShareDialog()">Compartir</app-ui-button> }
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openEditProjectDialog()">Editar proyecto</app-ui-button> }
+        @if (canEditDiagrams()) { <app-ui-button variant="secondary" (pressed)="openImportDialog()">Importar</app-ui-button> }
         @if (canEditDiagrams()) { <app-ui-button (pressed)="openCreateDialog()">+ Nuevo diagrama</app-ui-button> }
       </div>
     </header>
@@ -90,7 +91,7 @@
 
   @if (isEditProjectDialogOpen()) {
     <app-ui-dialog [open]="isEditProjectDialogOpen()" eyebrow="PROYECTO UML" title="Editar proyecto" titleId="edit-project-title" (closed)="closeEditProjectDialog()">
-      <form [formGroup]="projectEditForm" (ngSubmit)="updateProject()">
+      <form class="project-form" [formGroup]="projectEditForm" (ngSubmit)="updateProject()">
         <label>Nombre del proyecto<input formControlName="name" autocomplete="off" /></label>
         @if (projectEditForm.controls.name.touched && projectEditForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
         <label>Descripción <span>opcional</span><textarea formControlName="description"></textarea></label>
@@ -100,6 +101,26 @@
           <app-ui-button type="submit" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Guardando…' : 'Guardar cambios' }}</app-ui-button>
         </footer>
       </form>
+    </app-ui-dialog>
+  }
+
+  @if (isImportDialogOpen()) {
+    <app-ui-dialog [open]="isImportDialogOpen()" eyebrow="INTEROPERABILIDAD" title="Importar diagrama" titleId="project-import-diagram-title" (closed)="closeImportDialog()">
+      <p class="dialog-copy">Se creará un diagrama nuevo en este proyecto; los diagramas existentes no se modifican.</p>
+      <label class="import-file-input">
+        <span>Archivo XML o XMI</span>
+        <span class="file-picker">
+          <input type="file" accept=".xml,.xmi,application/xml,text/xml" (change)="selectImportFile($event)" />
+          <span class="file-picker-button">Seleccionar archivo</span>
+          <span class="file-picker-name">{{ importFile()?.name || 'Ningún archivo seleccionado' }}</span>
+        </span>
+      </label>
+      <p class="interchange-hint">Máximo 1 MB. Se admiten XML de UMLink y el subconjunto XMI/UML documentado.</p>
+      <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
+      <footer>
+        <app-ui-button variant="secondary" (pressed)="closeImportDialog()">Cancelar</app-ui-button>
+        <app-ui-button (pressed)="importDiagram()" [disabled]="!importFile() || isSubmitting()">{{ isSubmitting() ? 'Importando…' : 'Crear diagrama importado' }}</app-ui-button>
+      </footer>
     </app-ui-dialog>
   }
 
@@ -120,7 +141,7 @@
 
   @if (isEditDiagramDialogOpen()) {
     <app-ui-dialog [open]="isEditDiagramDialogOpen()" eyebrow="DIAGRAMA DE CLASES" title="Editar diagrama" titleId="edit-diagram-title" (closed)="closeEditDiagramDialog()">
-      <form [formGroup]="diagramEditForm" (ngSubmit)="updateDiagram()">
+      <form class="project-form" [formGroup]="diagramEditForm" (ngSubmit)="updateDiagram()">
         <label>Nombre del diagrama<input formControlName="name" autocomplete="off" /></label>
         @if (diagramEditForm.controls.name.touched && diagramEditForm.controls.name.invalid) { <p class="field-error">Escribe un nombre de hasta 120 caracteres.</p> }
         <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>

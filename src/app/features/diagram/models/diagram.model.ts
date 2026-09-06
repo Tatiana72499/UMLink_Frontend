@@ -13,6 +13,8 @@ export interface Diagram {
   createdAt: string;
 }
 
+export type InterchangeFormat = 'XML' | 'XMI' | 'EA_XMI' | 'EA_SCRIPT';
+
 export interface CreateDiagramRequest {
   name: string;
 }
