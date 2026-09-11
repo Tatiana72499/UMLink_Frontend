@@ -83,9 +83,10 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Vincular una clase existente como clase de asociación e identificarla con el conector discontinuo UML.
 - [x] Seleccionar y alinear conectores manualmente sin forzar trazado en L; abrir etiquetas con doble clic central y eliminar la relación seleccionada desde el lienzo.
 - [x] Exponer Clase intermedia como herramienta UML y crear atómicamente la asociación junto con su clase vinculada.
-- [x] Permitir varios puntos de alineación persistentes por relación y ocultar cardinalidad de clase intermedia.
+- [x] Permitir varios puntos de alineación persistentes por relación y fijar la clase intermedia como asociación muchos-a-muchos (`1..*` en ambos extremos).
 - [x] Permitir relaciones recursivas visuales y consultar el historial persistido de cambios del diagrama.
 - [x] Mejorar los controles del editor: resumen plegable desde el lienzo, acciones de eliminación con icono de papelera y miniaturas UML vectoriales para las herramientas de relación.
+- [x] Marcar un único atributo como llave primaria por clase desde el editor, visualizarlo como `PK` y sustituir visualmente la marca anterior al editar.
 - Confirmaciones para acciones destructivas y opción de deshacer cuando sea viable.
 
 **Criterio de salida:** una persona puede modelar un diagrama de clases sin depender de datos de ejemplo.
@@ -117,8 +118,10 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - Panel de asistencia por comandos concretos, nunca generación opaca de todo el modelo.
 - Flujo de confirmación antes de que la IA cambie el diagrama.
 - Comandos de voz con retroalimentación visible y alternativa de teclado.
-- [x] Importar archivos XML UMLink y XMI/UML en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
-- [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual o script de Automation API compatible con Enterprise Architect 15, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.
+- [x] Importar archivos XML UMLink, XMI/UML y PlantUML (`.puml`) en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
+- [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual, script de Automation API compatible con Enterprise Architect 15 o código PlantUML, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.
+- [x] Descargar un backend Spring Boot generado con capas CRUD y migración PostgreSQL desde el diagrama.
+- [x] Integrar vista previa de OpenRouter para transformar una imagen en PlantUML, revisar el resultado y confirmar antes de crear un diagrama nuevo.
 
 **Criterio de salida:** cada sugerencia de IA, voz o importación es revisable, reversible y comprensible por la persona usuaria.
 

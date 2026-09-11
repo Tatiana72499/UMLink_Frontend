@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { DiagramApiService } from '../../diagram/data-access/diagram-api.service';
 import { Diagram } from '../../diagram/models/diagram.model';
+import { DiagramImagePreview } from '../../diagram/models/diagram.model';
 import { ProjectApiService } from '../data-access/project-api.service';
 import { Project, ProjectMember } from '../models/project.model';
 import { ProjectDetailPage } from './project-detail-page';
@@ -34,6 +35,7 @@ describe('ProjectDetailPage', () => {
   let updateDiagramResponse: Observable<Diagram>;
   let deleteDiagramResponse: Observable<void>;
   let importDiagramResponse: Observable<Diagram>;
+  let imagePreviewResponse: Observable<DiagramImagePreview>;
   let membersResponse: Observable<ProjectMember[]>;
   let addMemberCalls: number;
   const projectApiStub: Pick<ProjectApiService, 'findById' | 'update' | 'delete' | 'findMembers' | 'addMember'> = {
@@ -43,10 +45,11 @@ describe('ProjectDetailPage', () => {
     findMembers: () => membersResponse,
     addMember: () => { addMemberCalls += 1; return of({ id: 'member-2', userId: 'user-2', name: 'Daniela', email: 'dani@umlink.dev', role: 'EDITOR' }); },
   };
-  const diagramApiStub: Pick<DiagramApiService, 'findByProject' | 'create' | 'import' | 'update' | 'delete'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'findByProject' | 'create' | 'import' | 'previewImage' | 'update' | 'delete'> = {
     findByProject: () => diagramsResponse,
     create: () => createResponse,
     import: () => importDiagramResponse,
+    previewImage: () => imagePreviewResponse,
     update: () => updateDiagramResponse,
     delete: () => deleteDiagramResponse,
   };
@@ -60,6 +63,7 @@ describe('ProjectDetailPage', () => {
     updateDiagramResponse = of({ ...diagram, name: 'Dominio actualizado', version: 1 });
     deleteDiagramResponse = of(undefined);
     importDiagramResponse = of({ ...diagram, id: 'diagram-imported', name: 'Importado' });
+    imagePreviewResponse = of({ plantUml: '@startuml\nclass Usuario\n@enduml', suggestedName: 'Diagrama desde imagen', classCount: 1, relationCount: 0 });
     addMemberCalls = 0;
     membersResponse = of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]);
     await TestBed.configureTestingModule({
@@ -159,12 +163,12 @@ describe('ProjectDetailPage', () => {
     expect(addMemberCalls).toBe(0);
   });
 
-  it('acepta XML/XMI y agrega el diagrama importado al proyecto', () => {
+  it('acepta PlantUML y agrega el diagrama importado al proyecto', () => {
     const fixture = TestBed.createComponent(ProjectDetailPage);
     const component = fixture.componentInstance;
     fixture.detectChanges();
     const input = document.createElement('input');
-    Object.defineProperty(input, 'files', { value: [new File(['<xmi:XMI />'], 'modelo.xmi')] });
+    Object.defineProperty(input, 'files', { value: [new File(['@startuml\nclass Usuario\n@enduml'], 'modelo.puml')] });
 
     component.openImportDialog();
     component.selectImportFile({ target: input } as unknown as Event);
@@ -173,5 +177,22 @@ describe('ProjectDetailPage', () => {
     expect(component.importFile()).toBeNull();
     expect(component.diagrams()[0].name).toBe('Importado');
     expect(component.successMessage()).toContain('importado');
+  });
+
+  it('analiza una imagen y crea el diagrama solo tras confirmar la propuesta', () => {
+    const fixture = TestBed.createComponent(ProjectDetailPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const input = document.createElement('input');
+    Object.defineProperty(input, 'files', { value: [new File(['imagen'], 'modelo.png', { type: 'image/png' })] });
+
+    component.openImageAnalysisDialog();
+    component.selectImageFile({ target: input } as unknown as Event);
+    component.analyzeImage();
+    expect(component.imagePreview()?.classCount).toBe(1);
+
+    component.createDiagramFromImage();
+    expect(component.isImageAnalysisDialogOpen()).toBe(false);
+    expect(component.successMessage()).toContain('propuesta de IA');
   });
 });

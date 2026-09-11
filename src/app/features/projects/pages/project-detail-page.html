@@ -14,6 +14,7 @@
       <div class="project-actions">
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openShareDialog()">Compartir</app-ui-button> }
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openEditProjectDialog()">Editar proyecto</app-ui-button> }
+        @if (canEditDiagrams()) { <app-ui-button variant="secondary" (pressed)="openImageAnalysisDialog()">Analizar foto</app-ui-button> }
         @if (canEditDiagrams()) { <app-ui-button variant="secondary" (pressed)="openImportDialog()">Importar</app-ui-button> }
         @if (canEditDiagrams()) { <app-ui-button (pressed)="openCreateDialog()">+ Nuevo diagrama</app-ui-button> }
       </div>
@@ -108,18 +109,48 @@
     <app-ui-dialog [open]="isImportDialogOpen()" eyebrow="INTEROPERABILIDAD" title="Importar diagrama" titleId="project-import-diagram-title" (closed)="closeImportDialog()">
       <p class="dialog-copy">Se creará un diagrama nuevo en este proyecto; los diagramas existentes no se modifican.</p>
       <label class="import-file-input">
-        <span>Archivo XML o XMI</span>
+        <span>Archivo XML, XMI o PlantUML</span>
         <span class="file-picker">
-          <input type="file" accept=".xml,.xmi,application/xml,text/xml" (change)="selectImportFile($event)" />
+          <input type="file" accept=".xml,.xmi,.puml,application/xml,text/xml,text/plain" (change)="selectImportFile($event)" />
           <span class="file-picker-button">Seleccionar archivo</span>
           <span class="file-picker-name">{{ importFile()?.name || 'Ningún archivo seleccionado' }}</span>
         </span>
       </label>
-      <p class="interchange-hint">Máximo 1 MB. Se admiten XML de UMLink y el subconjunto XMI/UML documentado.</p>
+      <p class="interchange-hint">Máximo 1 MB. Se admiten XML UMLink, XMI/UML y el subconjunto PlantUML documentado.</p>
       <p class="form-error" role="alert" [hidden]="!errorMessage()">{{ errorMessage() }}</p>
-      <footer>
+      <footer class="import-dialog-actions">
         <app-ui-button variant="secondary" (pressed)="closeImportDialog()">Cancelar</app-ui-button>
         <app-ui-button (pressed)="importDiagram()" [disabled]="!importFile() || isSubmitting()">{{ isSubmitting() ? 'Importando…' : 'Crear diagrama importado' }}</app-ui-button>
+      </footer>
+    </app-ui-dialog>
+  }
+
+  @if (isImageAnalysisDialogOpen()) {
+    <app-ui-dialog [open]="isImageAnalysisDialogOpen()" eyebrow="ASISTENCIA IA" title="Crear desde una foto" titleId="image-analysis-title" (closed)="closeImageAnalysisDialog()">
+      <p class="dialog-copy">Analizaremos la imagen y te mostraremos código PlantUML antes de crear un diagrama nuevo. Nada se guarda sin tu confirmación.</p>
+      <label class="import-file-input">
+        <span>Imagen del diagrama</span>
+        <span class="file-picker">
+          <input type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" (change)="selectImageFile($event)" />
+          <span class="file-picker-button">Seleccionar imagen</span>
+          <span class="file-picker-name">{{ imageFile()?.name || 'Ninguna imagen seleccionada' }}</span>
+        </span>
+      </label>
+      <p class="interchange-hint">PNG, JPG o WEBP, hasta 2 MB. Los resultados pueden requerir revisión si la imagen no es nítida.</p>
+      @if (imagePreview(); as preview) {
+        <section class="ai-preview" aria-label="Vista previa PlantUML">
+          <div><strong>Propuesta lista</strong><span>{{ preview.classCount }} clase(s) · {{ preview.relationCount }} relación(es)</span></div>
+          <textarea readonly aria-label="Código PlantUML generado">{{ preview.plantUml }}</textarea>
+        </section>
+      }
+      <p class="form-error" role="alert" [hidden]="!imageAnalysisError()">{{ imageAnalysisError() }}</p>
+      <footer class="import-dialog-actions">
+        <app-ui-button variant="secondary" (pressed)="closeImageAnalysisDialog()">Cancelar</app-ui-button>
+        @if (imagePreview()) {
+          <app-ui-button (pressed)="createDiagramFromImage()" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Creando…' : 'Crear diagrama' }}</app-ui-button>
+        } @else {
+          <app-ui-button (pressed)="analyzeImage()" [disabled]="!imageFile() || isImageAnalyzing()">{{ isImageAnalyzing() ? 'Analizando…' : 'Analizar imagen' }}</app-ui-button>
+        }
       </footer>
     </app-ui-dialog>
   }
@@ -156,7 +187,7 @@
   @if (isDeleteProjectDialogOpen()) {
     <app-ui-dialog [open]="isDeleteProjectDialogOpen()" eyebrow="CONFIRMACIÓN" title="¿Eliminar proyecto?" titleId="delete-project-title" (closed)="cancelProjectDeletion()">
       <p class="dialog-copy">Eliminarás este proyecto y sus diagramas. Esta acción no se puede deshacer.</p>
-      <footer>
+      <footer class="danger-dialog-actions">
         <app-ui-button variant="secondary" (pressed)="cancelProjectDeletion()">Cancelar</app-ui-button>
         <button class="danger-button" type="button" [disabled]="isSubmitting()" (click)="deleteProject()">Eliminar proyecto</button>
       </footer>
@@ -166,7 +197,7 @@
   @if (diagramPendingDeletion(); as diagram) {
     <app-ui-dialog [open]="true" eyebrow="CONFIRMACIÓN" title="¿Eliminar diagrama?" titleId="delete-diagram-title" (closed)="cancelDiagramDeletion()">
       <p class="dialog-copy">Eliminarás el diagrama “{{ diagram.name }}”. Esta acción no se puede deshacer.</p>
-      <footer>
+      <footer class="danger-dialog-actions">
         <app-ui-button variant="secondary" (pressed)="cancelDiagramDeletion()">Cancelar</app-ui-button>
         <button class="danger-button" type="button" [disabled]="isSubmitting()" (click)="deleteDiagram()">Eliminar diagrama</button>
       </footer>

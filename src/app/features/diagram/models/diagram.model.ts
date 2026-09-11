@@ -13,7 +13,14 @@ export interface Diagram {
   createdAt: string;
 }
 
-export type InterchangeFormat = 'XML' | 'XMI' | 'EA_XMI' | 'EA_SCRIPT';
+export interface DiagramImagePreview {
+  plantUml: string;
+  suggestedName: string;
+  classCount: number;
+  relationCount: number;
+}
+
+export type InterchangeFormat = 'XML' | 'XMI' | 'EA_XMI' | 'EA_SCRIPT' | 'PLANT_UML';
 
 export interface CreateDiagramRequest {
   name: string;
@@ -73,6 +80,7 @@ export interface UmlAttribute {
   name: string;
   dataType: string;
   visibility: string;
+  primaryKey: boolean;
 }
 
 export interface UmlOperationParameter {
@@ -121,6 +129,7 @@ export interface CreateAttributeRequest {
   name: string;
   dataType: AttributeDataType;
   visibility: string;
+  primaryKey: boolean;
 }
 export interface UpdateAttributeRequest extends CreateAttributeRequest {}
 export interface UmlRelation {

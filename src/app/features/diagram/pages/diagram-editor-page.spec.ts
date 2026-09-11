@@ -39,6 +39,7 @@ describe('DiagramEditorPage', () => {
     name: 'email',
     dataType: 'String',
     visibility: 'PRIVATE',
+    primaryKey: true,
   };
   const umlRelation: UmlRelation = {
     id: 'relation-1',
@@ -68,13 +69,15 @@ describe('DiagramEditorPage', () => {
   let voidResponse: Observable<void>;
   let diagramResponse: Observable<DiagramDetails['diagram']>;
   let exportResponse: Observable<Blob>;
+  let generatedBackendResponse: Observable<Blob>;
   const projectApiStub: Pick<ProjectApiService, 'findMembers'> = {
     findMembers: () => of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]),
   };
-  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'generateBackend' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
     findDetails: () => detailResponse,
     findActivity: () => activityResponse,
     export: () => exportResponse,
+    generateBackend: () => generatedBackendResponse,
     import: () => diagramResponse,
     update: () => diagramResponse,
     delete: () => voidResponse,
@@ -105,6 +108,7 @@ describe('DiagramEditorPage', () => {
     voidResponse = of(undefined);
     diagramResponse = of({ ...details.diagram, name: 'Dominio actualizado', version: 1 });
     exportResponse = of(new Blob(['<umlinkUml />'], { type: 'application/xml' }));
+    generatedBackendResponse = of(new Blob(['PK'], { type: 'application/zip' }));
     await TestBed.configureTestingModule({
       imports: [DiagramEditorPage],
       providers: [
@@ -146,7 +150,7 @@ describe('DiagramEditorPage', () => {
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1000, 600));
 
     component.toggleDrawingMode();
-    component.onCanvasPointerDown({ clientX: 10, clientY: 20 } as PointerEvent, canvas);
+    component.onCanvasPointerDown({ clientX: 10, clientY: 20, pointerId: 1, preventDefault: vi.fn() } as unknown as PointerEvent, canvas);
     component.onCanvasPointerMove({ clientX: 30, clientY: 40 } as PointerEvent, canvas);
     component.onCanvasPointerUp();
 
@@ -179,10 +183,24 @@ describe('DiagramEditorPage', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     component.openAttributeEditor(umlClass);
-    component.attributeLineForm.setValue({ name: 'email', dataType: 'STRING', visibility: 'PRIVATE' });
+    component.attributeLineForm.setValue({ name: 'email', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: true });
     component.addAttribute();
     expect(component.classes()[0].attributes).toEqual([umlAttribute]);
     expect(component.successMessage()).toContain(umlAttribute.name);
+  });
+
+  it('desmarca la llave primaria anterior cuando el servidor marca otra', () => {
+    const previousPrimaryKey: UmlAttribute = { ...umlAttribute, id: 'attribute-previous', name: 'id' };
+    detailResponse = of({ ...details, classes: [{ ...umlClass, attributes: [previousPrimaryKey] }] });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.openAttributeEditor(component.classes()[0]);
+    component.attributeLineForm.setValue({ name: 'email', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: true });
+    component.addAttribute();
+
+    expect(component.classes()[0].attributes).toEqual([{ ...previousPrimaryKey, primaryKey: false }, umlAttribute]);
   });
 
   it('agrega una operación UML con retorno y parámetros tipados', () => {
