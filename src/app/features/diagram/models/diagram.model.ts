@@ -13,6 +13,13 @@ export interface Diagram {
   createdAt: string;
 }
 
+export interface DiagramImagePreview {
+  plantUml: string;
+  suggestedName: string;
+  classCount: number;
+  relationCount: number;
+}
+
 export type InterchangeFormat = 'XML' | 'XMI' | 'EA_XMI' | 'EA_SCRIPT' | 'PLANT_UML';
 
 export interface CreateDiagramRequest {

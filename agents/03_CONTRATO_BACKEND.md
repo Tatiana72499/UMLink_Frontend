@@ -18,7 +18,9 @@ DELETE   /projects/{id}/members/{memberId}
 GET/POST /projects/{projectId}/diagrams
 GET      /diagrams/{diagramId}
 GET      /diagrams/{diagramId}/export?format=XML|XMI|EA_XMI|EA_SCRIPT|PLANT_UML
+GET      /diagrams/{diagramId}/generate/backend (ZIP de Spring Boot + Flyway)
 POST     /projects/{projectId}/diagrams/import (multipart: file)
+POST     /projects/{projectId}/diagrams/ai/image-preview (multipart: file PNG|JPG|WEBP, no persiste)
 GET      /diagrams/{diagramId}/activity
 PUT      /diagrams/{diagramId}
 DELETE   /diagrams/{diagramId}?version={version}
@@ -60,6 +62,10 @@ DELETE   /relations/{id}
 - La exportación entrega `XML` UMLink, `XMI` UML genérico, `EA_XMI`, `EA_SCRIPT` para Enterprise Architect 15 o `PLANT_UML`. La importación recibe archivos `.xml`, `.xmi` o `.puml` de hasta 1 MB y crea un diagrama nuevo sin sobrescribir el lienzo abierto. Además del XMI/UML moderno, acepta el XMI 1.x clásico de Enterprise Architect con su subconjunto de clases, atributos, operaciones, asociaciones, generalizaciones y cardinalidades compatibles. PlantUML cubre clases, atributos, una PK por clase, operaciones, colores, relaciones, cardinalidades y clases de asociación; al importarlo, posiciones, puntos de alineación y trazos se generan nuevamente. XML UMLink conserva esos detalles visuales; `EA_XMI` crea un diagrama de clases visual; `EA_SCRIPT` crea elementos, conectores y posiciones mediante la Automation API dentro del paquete seleccionado en EA.
 
 El frontend debe usar los DTOs en `features/projects/models` y `features/diagram/models`. Si el backend cambia un contrato, actualizar ambos lados en la misma tarea y documentar el cambio.
+
+El análisis de imagen admite PNG, JPG o WEBP de hasta 2 MB. La respuesta es `{ plantUml, suggestedName, classCount, relationCount }` y nunca persiste cambios. El frontend debe mostrarla como propuesta revisable y, solo tras confirmación de la persona usuaria, usar la importación PlantUML para crear un diagrama nuevo.
+
+La generación de backend devuelve un ZIP no persistido. El editor lo descarga desde el diálogo “Descargar”; incluye Spring Boot, capas CRUD por clase y `V1__initial_schema.sql` para PostgreSQL. Si el diagrama no tiene clases válidas, se muestra el error seguro retornado por el backend.
 
 `POST /projects/{id}/members` recibe `{ email, role }`, donde `role` es `EDITOR` o `VIEWER`, y requiere una cuenta ya registrada distinta de la propietaria del proyecto. La respuesta contiene `id`, `userId`, `name`, `email` y `role`. Solo `OWNER` administra miembros; `EDITOR` modifica diagramas y `VIEWER` solo los consulta. El enlace del proyecto sirve para navegar, nunca para conceder acceso.
 

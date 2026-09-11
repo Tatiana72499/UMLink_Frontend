@@ -299,6 +299,10 @@ h1 {
 .file-picker:focus-within { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; }
 .file-picker-name { color: #5e7f9e; font-size: .78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .interchange-hint { color: #6987a3; font-size: .76rem; line-height: 1.45; margin: .55rem 0 0; }
+.ai-preview { background: #f6faff; border: 1px solid #d4e6f8; border-radius: .7rem; display: grid; gap: .65rem; margin-top: 1rem; padding: .85rem; }
+.ai-preview div { align-items: center; color: #244d78; display: flex; font-size: .84rem; justify-content: space-between; }
+.ai-preview span { color: #6987a3; font-size: .74rem; }
+.ai-preview textarea { background: #fff; border: 1px solid #c7def4; border-radius: .45rem; box-sizing: border-box; color: #244d78; font: 0.75rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; min-height: 10rem; padding: .65rem; resize: vertical; width: 100%; }
 .share-intro { align-items: flex-start; color: #496b8d; display: flex; gap: 0.7rem; line-height: 1.5; margin-bottom: 1.15rem; }
 .share-intro span { align-items: center; background: #eaf3ff; border-radius: 0.55rem; color: #0767c8; display: inline-flex; font-weight: 900; height: 2rem; justify-content: center; width: 2rem; }
 .share-intro p { margin: 0; }

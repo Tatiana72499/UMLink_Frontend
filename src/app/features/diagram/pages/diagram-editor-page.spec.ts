@@ -69,13 +69,15 @@ describe('DiagramEditorPage', () => {
   let voidResponse: Observable<void>;
   let diagramResponse: Observable<DiagramDetails['diagram']>;
   let exportResponse: Observable<Blob>;
+  let generatedBackendResponse: Observable<Blob>;
   const projectApiStub: Pick<ProjectApiService, 'findMembers'> = {
     findMembers: () => of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]),
   };
-  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'generateBackend' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
     findDetails: () => detailResponse,
     findActivity: () => activityResponse,
     export: () => exportResponse,
+    generateBackend: () => generatedBackendResponse,
     import: () => diagramResponse,
     update: () => diagramResponse,
     delete: () => voidResponse,
@@ -106,6 +108,7 @@ describe('DiagramEditorPage', () => {
     voidResponse = of(undefined);
     diagramResponse = of({ ...details.diagram, name: 'Dominio actualizado', version: 1 });
     exportResponse = of(new Blob(['<umlinkUml />'], { type: 'application/xml' }));
+    generatedBackendResponse = of(new Blob(['PK'], { type: 'application/zip' }));
     await TestBed.configureTestingModule({
       imports: [DiagramEditorPage],
       providers: [

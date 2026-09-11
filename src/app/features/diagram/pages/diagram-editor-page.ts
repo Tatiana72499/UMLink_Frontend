@@ -240,12 +240,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.isSubmitting.set(true);
     this.diagramApi.export(diagram.id, format).subscribe({
       next: (file) => {
-        const link = document.createElement('a');
-        const objectUrl = URL.createObjectURL(file);
-        link.href = objectUrl;
-        link.download = `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : format === 'PLANT_UML' ? 'puml' : 'xmi'}`;
-        link.click();
-        URL.revokeObjectURL(objectUrl);
+        this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : format === 'PLANT_UML' ? 'puml' : 'xmi'}`);
         this.closeExportDialog();
         this.successMessage.set(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format === 'PLANT_UML' ? 'PlantUML' : format} fue descargado.`);
         this.isSubmitting.set(false);
@@ -255,6 +250,33 @@ export class DiagramEditorPage implements OnDestroy {
         this.isSubmitting.set(false);
       },
     });
+  }
+
+  downloadGeneratedBackend(): void {
+    const diagram = this.diagram();
+    if (!diagram) return;
+    this.isSubmitting.set(true);
+    this.diagramApi.generateBackend(diagram.id).subscribe({
+      next: (file) => {
+        this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}-backend.zip`);
+        this.closeExportDialog();
+        this.successMessage.set('El backend Spring Boot con migración PostgreSQL fue descargado.');
+        this.isSubmitting.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('No pudimos generar el backend. Revisa que el diagrama tenga al menos una clase válida.');
+        this.isSubmitting.set(false);
+      },
+    });
+  }
+
+  private triggerDownload(file: Blob, fileName: string): void {
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(file);
+    link.href = objectUrl;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
   }
 
   openCreateDialog(): void {

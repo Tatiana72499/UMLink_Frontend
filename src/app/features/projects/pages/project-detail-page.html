@@ -14,6 +14,7 @@
       <div class="project-actions">
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openShareDialog()">Compartir</app-ui-button> }
         @if (canManageMembers()) { <app-ui-button variant="secondary" (pressed)="openEditProjectDialog()">Editar proyecto</app-ui-button> }
+        @if (canEditDiagrams()) { <app-ui-button variant="secondary" (pressed)="openImageAnalysisDialog()">Analizar foto</app-ui-button> }
         @if (canEditDiagrams()) { <app-ui-button variant="secondary" (pressed)="openImportDialog()">Importar</app-ui-button> }
         @if (canEditDiagrams()) { <app-ui-button (pressed)="openCreateDialog()">+ Nuevo diagrama</app-ui-button> }
       </div>
@@ -120,6 +121,36 @@
       <footer class="import-dialog-actions">
         <app-ui-button variant="secondary" (pressed)="closeImportDialog()">Cancelar</app-ui-button>
         <app-ui-button (pressed)="importDiagram()" [disabled]="!importFile() || isSubmitting()">{{ isSubmitting() ? 'Importando…' : 'Crear diagrama importado' }}</app-ui-button>
+      </footer>
+    </app-ui-dialog>
+  }
+
+  @if (isImageAnalysisDialogOpen()) {
+    <app-ui-dialog [open]="isImageAnalysisDialogOpen()" eyebrow="ASISTENCIA IA" title="Crear desde una foto" titleId="image-analysis-title" (closed)="closeImageAnalysisDialog()">
+      <p class="dialog-copy">Analizaremos la imagen y te mostraremos código PlantUML antes de crear un diagrama nuevo. Nada se guarda sin tu confirmación.</p>
+      <label class="import-file-input">
+        <span>Imagen del diagrama</span>
+        <span class="file-picker">
+          <input type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" (change)="selectImageFile($event)" />
+          <span class="file-picker-button">Seleccionar imagen</span>
+          <span class="file-picker-name">{{ imageFile()?.name || 'Ninguna imagen seleccionada' }}</span>
+        </span>
+      </label>
+      <p class="interchange-hint">PNG, JPG o WEBP, hasta 2 MB. Los resultados pueden requerir revisión si la imagen no es nítida.</p>
+      @if (imagePreview(); as preview) {
+        <section class="ai-preview" aria-label="Vista previa PlantUML">
+          <div><strong>Propuesta lista</strong><span>{{ preview.classCount }} clase(s) · {{ preview.relationCount }} relación(es)</span></div>
+          <textarea readonly aria-label="Código PlantUML generado">{{ preview.plantUml }}</textarea>
+        </section>
+      }
+      <p class="form-error" role="alert" [hidden]="!imageAnalysisError()">{{ imageAnalysisError() }}</p>
+      <footer class="import-dialog-actions">
+        <app-ui-button variant="secondary" (pressed)="closeImageAnalysisDialog()">Cancelar</app-ui-button>
+        @if (imagePreview()) {
+          <app-ui-button (pressed)="createDiagramFromImage()" [disabled]="isSubmitting()">{{ isSubmitting() ? 'Creando…' : 'Crear diagrama' }}</app-ui-button>
+        } @else {
+          <app-ui-button (pressed)="analyzeImage()" [disabled]="!imageFile() || isImageAnalyzing()">{{ isImageAnalyzing() ? 'Analizando…' : 'Analizar imagen' }}</app-ui-button>
+        }
       </footer>
     </app-ui-dialog>
   }

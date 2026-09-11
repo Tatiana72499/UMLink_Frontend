@@ -120,7 +120,8 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - Comandos de voz con retroalimentación visible y alternativa de teclado.
 - [x] Importar archivos XML UMLink, XMI/UML y PlantUML (`.puml`) en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
 - [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual, script de Automation API compatible con Enterprise Architect 15 o código PlantUML, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.
-- [ ] Integrar el servicio externo de IA para transformar imagen o texto en PlantUML cuando se acuerden su URL, autenticación y contrato de errores.
+- [x] Descargar un backend Spring Boot generado con capas CRUD y migración PostgreSQL desde el diagrama.
+- [x] Integrar vista previa de OpenRouter para transformar una imagen en PlantUML, revisar el resultado y confirmar antes de crear un diagrama nuevo.
 
 **Criterio de salida:** cada sugerencia de IA, voz o importación es revisable, reversible y comprensible por la persona usuaria.
 

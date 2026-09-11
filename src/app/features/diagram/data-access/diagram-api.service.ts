@@ -15,6 +15,7 @@ import {
   UpdateAttributeRequest,
   UpdateDiagramRequest,
   Diagram,
+  DiagramImagePreview,
   DiagramActivity,
   DiagramDrawing,
   DiagramDetails,
@@ -58,10 +59,22 @@ export class DiagramApiService {
     });
   }
 
+  generateBackend(diagramId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/diagrams/${diagramId}/generate/backend`, {
+      responseType: 'blob',
+    });
+  }
+
   import(projectId: string, file: File): Observable<Diagram> {
     const body = new FormData();
     body.append('file', file, file.name);
     return this.http.post<Diagram>(`${this.apiUrl}/projects/${projectId}/diagrams/import`, body);
+  }
+
+  previewImage(projectId: string, file: File): Observable<DiagramImagePreview> {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.post<DiagramImagePreview>(`${this.apiUrl}/projects/${projectId}/diagrams/ai/image-preview`, body);
   }
 
   findActivity(diagramId: string): Observable<DiagramActivity[]> {

@@ -558,6 +558,7 @@
         <button type="button" (click)="downloadDiagram('EA_XMI')" [disabled]="isSubmitting()"><strong>Enterprise Architect 15</strong><small>Diagrama visual con posiciones</small></button>
         <button type="button" (click)="downloadDiagram('EA_SCRIPT')" [disabled]="isSubmitting()"><strong>Script Enterprise Architect</strong><small>Genera clases y relaciones dentro de EA</small></button>
         <button type="button" (click)="downloadDiagram('PLANT_UML')" [disabled]="isSubmitting()"><strong>PlantUML</strong><small>Código editable y reutilizable</small></button>
+        <button type="button" (click)="downloadGeneratedBackend()" [disabled]="isSubmitting()"><strong>Backend Spring Boot</strong><small>ZIP con capas, CRUD y migración PostgreSQL</small></button>
       </div>
     </app-ui-dialog>
   }

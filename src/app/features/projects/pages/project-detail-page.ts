@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthSessionService, isVersionConflict } from '../../../core';
 import { DiagramApiService } from '../../diagram/data-access/diagram-api.service';
-import { Diagram } from '../../diagram/models/diagram.model';
+import { Diagram, DiagramImagePreview } from '../../diagram/models/diagram.model';
 import { ProjectApiService } from '../data-access/project-api.service';
 import { AddProjectMemberRequest, Project, ProjectMember, ProjectRole, UpdateProjectRequest } from '../models/project.model';
 import { UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent } from '../../../shared';
@@ -35,11 +35,16 @@ export class ProjectDetailPage {
   readonly isEditProjectDialogOpen = signal(false);
   readonly isEditDiagramDialogOpen = signal(false);
   readonly isImportDialogOpen = signal(false);
+  readonly isImageAnalysisDialogOpen = signal(false);
   readonly isDeleteProjectDialogOpen = signal(false);
   readonly isShareDialogOpen = signal(false);
   readonly diagramPendingDeletion = signal<Diagram | null>(null);
   readonly editingDiagram = signal<Diagram | null>(null);
   readonly importFile = signal<File | null>(null);
+  readonly imageFile = signal<File | null>(null);
+  readonly imagePreview = signal<DiagramImagePreview | null>(null);
+  readonly imageAnalysisError = signal('');
+  readonly isImageAnalyzing = signal(false);
   readonly members = signal<ProjectMember[]>([]);
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
@@ -161,6 +166,81 @@ export class ProjectDetailPage {
   closeImportDialog(): void {
     this.importFile.set(null);
     this.isImportDialogOpen.set(false);
+  }
+
+  openImageAnalysisDialog(): void {
+    if (!this.canEditDiagrams()) return;
+    this.imageFile.set(null);
+    this.imagePreview.set(null);
+    this.imageAnalysisError.set('');
+    this.isImageAnalysisDialogOpen.set(true);
+  }
+
+  closeImageAnalysisDialog(): void {
+    this.imageFile.set(null);
+    this.imagePreview.set(null);
+    this.imageAnalysisError.set('');
+    this.isImageAnalysisDialogOpen.set(false);
+  }
+
+  selectImageFile(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (!file) return;
+    const accepted = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!accepted.includes(file.type) || !/\.(png|jpe?g|webp)$/i.test(file.name)) {
+      this.imageFile.set(null);
+      this.imageAnalysisError.set('Selecciona una imagen PNG, JPG o WEBP.');
+      return;
+    }
+    if (file.size > 2_000_000) {
+      this.imageFile.set(null);
+      this.imageAnalysisError.set('La imagen supera el límite de 2 MB permitido.');
+      return;
+    }
+    this.imageAnalysisError.set('');
+    this.imagePreview.set(null);
+    this.imageFile.set(file);
+  }
+
+  analyzeImage(): void {
+    const file = this.imageFile();
+    if (!this.projectId || !file) {
+      this.imageAnalysisError.set('Selecciona una imagen antes de analizarla.');
+      return;
+    }
+    this.isImageAnalyzing.set(true);
+    this.imageAnalysisError.set('');
+    this.diagramApi.previewImage(this.projectId, file).subscribe({
+      next: (preview) => {
+        this.imagePreview.set(preview);
+        this.isImageAnalyzing.set(false);
+      },
+      error: (error: unknown) => {
+        this.imageAnalysisError.set(this.importErrorMessage(error));
+        this.isImageAnalyzing.set(false);
+      },
+    });
+  }
+
+  createDiagramFromImage(): void {
+    const preview = this.imagePreview();
+    if (!this.projectId || !preview) return;
+    const normalizedName = preview.suggestedName.trim() || 'diagrama-desde-imagen';
+    const file = new File([preview.plantUml], `${normalizedName}.puml`, { type: 'text/plain' });
+    this.isSubmitting.set(true);
+    this.diagramApi.import(this.projectId, file).subscribe({
+      next: (diagram) => {
+        this.diagrams.update((diagrams) => [diagram, ...diagrams]);
+        this.state.set('ready');
+        this.successMessage.set(`El diagrama “${diagram.name}” fue creado desde la propuesta de IA.`);
+        this.closeImageAnalysisDialog();
+        this.isSubmitting.set(false);
+      },
+      error: (error: unknown) => {
+        this.imageAnalysisError.set(this.importErrorMessage(error));
+        this.isSubmitting.set(false);
+      },
+    });
   }
 
   selectImportFile(event: Event): void {
