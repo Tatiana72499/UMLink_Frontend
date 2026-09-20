@@ -1,0 +1,31 @@
+<section class="landing">
+  <header class="landing-nav">
+    <a class="landing-brand" routerLink="/" aria-label="UMLink inicio"><span>U</span> UMLink</a>
+    <nav aria-label="Navegación pública"><a href="#beneficios">Beneficios</a><a href="#colaboracion">Colaboración</a></nav>
+    <div><a class="login-link" routerLink="/auth/login">Iniciar sesión</a><a class="nav-cta" routerLink="/auth/register">Crear cuenta</a></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><i></i> DISEÑO UML COLABORATIVO</p>
+        <h1>Convierte ideas complejas en <em>modelos claros.</em></h1>
+        <p class="hero-description">Diseña diagramas UML, colabora en tiempo real y transforma tu arquitectura en una base lista para construir.</p>
+        <div class="hero-actions"><a class="primary-cta" routerLink="/auth/register">Empieza gratis <span>→</span></a><a class="secondary-cta" routerLink="/auth/login">Ver mis proyectos</a></div>
+        <div class="hero-proof"><span class="avatar-stack"><b>T</b><b>M</b><b>A</b></span><p><strong>Hecho para equipos que piensan en grande</strong><br />Modela, conversa y decide en un solo lienzo.</p></div>
+      </div>
+      <div class="hero-visual" aria-label="Vista previa de un diagrama UML">
+        <div class="visual-glow glow-one"></div><div class="visual-glow glow-two"></div>
+        <div class="diagram-window">
+          <header><span class="window-mark">U</span><span>Arquitectura del producto</span><i>●</i><i>●</i><i>●</i></header>
+          <aside><span></span><span></span><span></span><span></span></aside>
+          <div class="diagram-canvas"><svg viewBox="0 0 650 370" aria-hidden="true"><path d="M187 122 C265 120 300 145 360 157" /><path d="M445 206 C403 252 316 270 242 268" /><path class="dashed" d="M209 271 C345 312 475 290 505 217" /><polygon points="359,156 347,151 351,164" /></svg><article class="uml-card account"><small>&lt;&lt;class&gt;&gt;</small><strong>Usuario</strong><p>− id: UUID</p><p>− correo: String</p></article><article class="uml-card project"><small>&lt;&lt;class&gt;&gt;</small><strong>Proyecto</strong><p>− id: UUID</p><p>− nombre: String</p></article><article class="uml-card diagram"><small>&lt;&lt;class&gt;&gt;</small><strong>Diagrama</strong><p>− versión: Long</p></article><div class="live-note"><span>✦</span><p><strong>María</strong> agregó una relación</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="benefits" id="beneficios"><p class="eyebrow">TODO EN UN MISMO ESPACIO</p><h2>De la conversación a una arquitectura que todos entienden.</h2><div class="benefit-grid"><article><span>◇</span><h3>Editor visual</h3><p>Clases, atributos, relaciones y cardinalidades con semántica UML real.</p></article><article><span>✦</span><h3>Asistencia inteligente</h3><p>Describe un cambio por texto o voz y mantén siempre la última decisión.</p></article><article><span>↗</span><h3>Trabajo compartido</h3><p>Invita a tu equipo, define permisos y observa los cambios en tiempo real.</p></article></div></section>
+    <section class="collaboration" id="colaboracion"><div><p class="eyebrow">CONSTRUIDO PARA COLABORAR</p><h2>Tu modelo no se pierde entre mensajes, capturas y versiones.</h2><p>UMLink reúne el lienzo, el historial y las decisiones de tu equipo para que cada diagrama avance con claridad.</p></div><a routerLink="/auth/register">Crear mi espacio de trabajo <span>→</span></a></section>
+  </main>
+  <footer><a class="landing-brand" routerLink="/"><span>U</span> UMLink</a><p>Modela con claridad. Colabora con confianza.</p></footer>
+</section>

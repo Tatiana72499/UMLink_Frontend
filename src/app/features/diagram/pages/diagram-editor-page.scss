@@ -227,6 +227,8 @@
   pointer-events: none;
 }
 .canvas.drawing { touch-action: none; }
+.canvas.erasing, .canvas.erasing .uml-card { cursor: none; }
+.canvas.erasing .uml-card, .canvas.erasing .relation-layer { pointer-events: none; }
 .canvas-heading {
   align-items: center;
   background: rgba(255, 255, 255, 0.9);
@@ -678,6 +680,9 @@
 .uml-card.remote-active { box-shadow: 0 0 0 3px var(--collaboration-color); }
 .uml-card ul { list-style: none; margin: .55rem 0 0; padding: .45rem .7rem; border-top: 1px solid #dbe8f7; font-size: .78rem; }
 .uml-card li { align-items: center; display: flex; gap: .2rem; justify-content: space-between; }
+.uml-card li[draggable='true'] { cursor: grab; }
+.uml-card li[draggable='true']::before { color: #88a1bb; content: '⠿'; font-size: .8rem; margin-right: .15rem; }
+.uml-card li[draggable='true']:active { cursor: grabbing; opacity: .6; }
 .uml-card li + li { margin-top: .25rem; }
 .uml-card li.editing { display: block; }
 .relation-layer { inset: 0; height: 100%; overflow: visible; pointer-events: auto; position: absolute; width: 100%; }
@@ -986,3 +991,5 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
 .activity-history p { color: #496885; font-size: 0.83rem; line-height: 1.35; margin: 0; }
 .activity-history strong { color: #193f6b; }
 .activity-history small { color: #7891aa; display: block; font-size: 0.72rem; margin-top: 0.18rem; }
+
+.eraser-cursor { background: rgba(240, 248, 255, .25); border: 2px solid #0759b8; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 255, 255, .88); height: 1.6rem; pointer-events: none; position: absolute; transform: translate(-50%, -50%); transition: left 45ms linear, top 45ms linear; width: 1.6rem; z-index: 5; }

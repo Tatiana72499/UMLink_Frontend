@@ -54,10 +54,6 @@
           <span class="tool-symbol class-symbol" aria-hidden="true"></span
           ><span><strong>Clase</strong><small>Entidad con atributos</small></span>
         </button>
-        <button class="tool disabled" type="button" disabled>
-          <span class="tool-symbol interface-symbol" aria-hidden="true"></span
-          ><span><strong>Interfaz</strong><small>Próximamente</small></span>
-        </button>
         <div class="relation-tools" aria-label="Tipos de relación UML">
           <p>RELACIONES UML</p>
           @for (relationTool of relationTools; track relationTool.id) {
@@ -105,16 +101,16 @@
             </button>
           }
         </div>
-        <div class="quick-help">
+        <div class="quick-help" aria-live="polite">
           <span aria-hidden="true">✦</span>
           <div>
-            <strong>Primer paso</strong>
-            <p>Crea una clase y continúa modelando desde el lienzo.</p>
+            <strong>Sugerencia del modelo</strong>
+            <p>{{ designAdvice() }}</p>
           </div>
         </div>
       </aside>
 
-      <section class="canvas" #canvas aria-label="Lienzo del diagrama" [class.placing-class]="editorMode() === 'place-class'" [class.creating-relation]="editorMode() === 'create-relation'" [class.drawing]="editorMode() === 'draw'" (pointerdown)="onCanvasPointerDown($event, canvas)" (pointermove)="onCanvasPointerMove($event, canvas)" (pointerup)="onCanvasPointerUp()" (pointercancel)="onCanvasPointerUp()">
+      <section class="canvas" #canvas aria-label="Lienzo del diagrama" [class.placing-class]="editorMode() === 'place-class'" [class.creating-relation]="editorMode() === 'create-relation'" [class.drawing]="editorMode() === 'draw'" [class.erasing]="editorMode() === 'erase'" (pointerdown)="onCanvasPointerDown($event, canvas)" (pointermove)="onCanvasPointerMove($event, canvas)" (pointerup)="onCanvasPointerUp()" (pointercancel)="onCanvasPointerUp()">
         <div class="canvas-heading">
           <span>{{ state() === 'loading' ? 'Cargando…' : classes().length + ' clase(s)' }}</span
           ><span class="saved-state collaboration-state" [class.connected]="collaborationState() === 'connected'" [class.warning]="collaborationState() === 'reconnecting' || collaborationState() === 'error'"><i></i> {{ collaborationStatusLabel() }} · v{{ diagram()?.version ?? '—' }}</span>
@@ -179,7 +175,7 @@
                     <text class="cardinality-label" [attr.x]="geometry.sourceLabelX" [attr.y]="geometry.sourceLabelY">{{ relation.sourceCardinality }}</text>
                   } @else if (isEditingCanvasCardinality(relation.id, 'source')) {
                     <foreignObject [attr.x]="geometry.sourceLabelX - 30" [attr.y]="geometry.sourceLabelY - 18" width="60" height="30" class="cardinality-foreign">
-                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de origen" (change)="saveCanvasCardinality(relation, 'source')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
+                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de origen" (change)="saveCanvasCardinality(relation, 'source')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option><option value="0..*">0..*</option></select></form>
                     </foreignObject>
                   } @else {
                     <text class="cardinality-label" [class.selected]="selectedRelationId() === relation.id" [attr.x]="geometry.sourceLabelX" [attr.y]="geometry.sourceLabelY" role="button" tabindex="0" (click)="openCanvasCardinalityEditor(relation, 'source')" (keydown.enter)="openCanvasCardinalityEditor(relation, 'source')" [attr.aria-label]="'Editar cardinalidad de origen: ' + relation.sourceCardinality">{{ relation.sourceCardinality }}</text>
@@ -188,7 +184,7 @@
                     <text class="cardinality-label" [attr.x]="geometry.targetLabelX" [attr.y]="geometry.targetLabelY">{{ relation.targetCardinality }}</text>
                   } @else if (isEditingCanvasCardinality(relation.id, 'target')) {
                     <foreignObject [attr.x]="geometry.targetLabelX - 30" [attr.y]="geometry.targetLabelY - 18" width="60" height="30" class="cardinality-foreign">
-                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de destino" (change)="saveCanvasCardinality(relation, 'target')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></form>
+                      <form [formGroup]="canvasCardinalityForm"><select formControlName="value" aria-label="Cardinalidad de destino" (change)="saveCanvasCardinality(relation, 'target')"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option><option value="0..*">0..*</option></select></form>
                     </foreignObject>
                   } @else {
                     <text class="cardinality-label" [class.selected]="selectedRelationId() === relation.id" [attr.x]="geometry.targetLabelX" [attr.y]="geometry.targetLabelY" role="button" tabindex="0" (click)="openCanvasCardinalityEditor(relation, 'target')" (keydown.enter)="openCanvasCardinalityEditor(relation, 'target')" [attr.aria-label]="'Editar cardinalidad de destino: ' + relation.targetCardinality">{{ relation.targetCardinality }}</text>
@@ -215,10 +211,11 @@
             }
           </svg>
           <svg class="drawing-layer" aria-label="Trazos temporales">
-            @for (drawing of freehandPaths(); track drawing.id) { <path [attr.d]="drawing.svgPath" /> }
+            @for (drawing of freehandPaths(); track drawing.id) { <path [attr.d]="drawing.svgPath" [attr.stroke]="drawing.strokeColor || '#315B85'" /> }
             @for (preview of remoteDrawingPreviews(); track preview.userId) { <path class="remote-drawing-preview" [attr.d]="preview.svgPath" /> }
-            @if (currentDrawing(); as drawing) { <path [attr.d]="drawing" /> }
+            @if (currentDrawing(); as drawing) { <path [attr.d]="drawing" [attr.stroke]="drawingColor()" /> }
           </svg>
+          @if (editorMode() === 'erase' && eraserPointer(); as eraser) { <span class="eraser-cursor" [style.left.px]="eraser.x" [style.top.px]="eraser.y" aria-hidden="true"></span> }
           @for (umlClass of classes(); track umlClass.id) {
             <article
               class="uml-card"
@@ -243,10 +240,10 @@
                 <p>Sin atributos todavía</p>
               } @else {
                 <ul>
-                  @for (attribute of umlClass.attributes; track attribute.id) {
-                    <li [class.editing]="editingAttributeId() === attribute.id">
+                  @for (attribute of orderedAttributes(umlClass); track attribute.id) {
+                    <li [class.editing]="editingAttributeId() === attribute.id" [draggable]="canEdit() && !attribute.primaryKey" (dragstart)="beginAttributeDrag($event, umlClass, attribute)" (dragover)="allowAttributeDrop($event)" (drop)="dropAttribute($event, umlClass, attribute)" (pointerdown)="$event.stopPropagation()">
                       @if (editingAttributeId() === attribute.id) {
-                        <form class="inline-attribute-editor" [formGroup]="attributeEditForm" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); saveAttributeEdit()" (ngSubmit)="saveAttributeEdit()">
+                        <form class="inline-attribute-editor" [formGroup]="attributeEditForm" (focusout)="saveAttributeWhenFocusLeaves($event)" (pointerdown)="$event.stopPropagation()" (click)="$event.stopPropagation()" (keydown.enter)="$event.preventDefault(); saveAttributeEdit()" (ngSubmit)="saveAttributeEdit()">
                           <label [attr.for]="'edit-attribute-' + attribute.id" class="visually-hidden">Editar atributo UML</label>
                           <input [id]="'edit-attribute-' + attribute.id" formControlName="name" placeholder="nombre" />
                           <select formControlName="dataType" aria-label="Tipo de atributo">@for (attributeType of attributeTypes; track attributeType.value) { <option [value]="attributeType.value">{{ attributeType.label }}</option> }</select>
@@ -304,8 +301,11 @@
             <strong>{{ pendingClassName() }}</strong>
           </article>
         }
-        <div class="annotation-toolbar" aria-label="Herramientas de dibujo y anotaciones">
-          <button type="button" [class.active]="editorMode() === 'draw'" [disabled]="!canEdit()" (click)="toggleDrawingMode()" aria-label="Activar lápiz de dibujo">✎</button>
+        <div class="annotation-toolbar" aria-label="Herramientas de dibujo y anotaciones" (pointerdown)="$event.stopPropagation()">
+          <button type="button" [class.active]="editorMode() === 'draw'" [disabled]="!canEdit()" (click)="toggleDrawingMode()" [attr.aria-label]="editorMode() === 'draw' ? 'Desactivar lápiz de dibujo' : 'Activar lápiz de dibujo'" [attr.aria-pressed]="editorMode() === 'draw'">✎</button>
+
+
+
           <button type="button" [class.active]="editorMode() === 'erase'" [disabled]="!canEdit() || freehandPaths().length === 0" (click)="toggleEraserMode()" aria-label="Activar borrador">⌫</button>
           <button type="button" [disabled]="!canEdit() || freehandPaths().length === 0" (click)="clearDrawings()" aria-label="Eliminar todos los trazos" title="Eliminar todos los trazos">🗑</button>
         </div>
@@ -366,7 +366,7 @@
         </section>
         @if (selectedClass(); as selectedClass) {
           <p class="selection-label">CLASE UML</p>
-          <form class="class-editor" [formGroup]="classEditForm" (keydown.enter)="$event.preventDefault(); saveClass()" (ngSubmit)="saveClass()">
+          <form class="class-editor" [formGroup]="classEditForm" (focusout)="saveClassWhenFocusLeaves($event)" (keydown.enter)="$event.preventDefault(); saveClass()" (ngSubmit)="saveClass()">
             <label>Nombre de la clase<input formControlName="name" /></label>
             @if (classEditForm.invalid && classEditForm.touched) { <p class="field-error">El nombre es obligatorio.</p> }
             <button class="primary-action compact-action" type="submit" [disabled]="isSubmitting()">Guardar clase</button>
@@ -403,8 +403,8 @@
               }
               @if (relationSupportsLabel(relationEditForm.controls.type.value)) { <p class="property-hint">La palabra de enlace se edita directamente en el centro de la relación.</p> }
               @if (relationSupportsCardinality(relationEditForm.controls.type.value) && !relationEditForm.controls.associationClassId.value) {
-                <label>Cardinalidad en origen<select formControlName="sourceCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
-                <label>Cardinalidad en destino<select formControlName="targetCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option></select></label>
+                <label>Cardinalidad en origen<select formControlName="sourceCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option><option value="0..*">0..*</option></select></label>
+                <label>Cardinalidad en destino<select formControlName="targetCardinality"><option value="1..1">1..1</option><option value="0..1">0..1</option><option value="1..*">1..*</option><option value="0..*">0..*</option></select></label>
               }
               @if (relationEditForm.invalid && relationEditForm.touched) { <p class="field-error">Revisa los datos de la relación.</p> }
               <div class="relation-editor-actions">
@@ -559,8 +559,19 @@
         <button type="button" (click)="downloadDiagram('EA_SCRIPT')" [disabled]="isSubmitting()"><strong>Script Enterprise Architect</strong><small>Genera clases y relaciones dentro de EA</small></button>
         <button type="button" (click)="downloadDiagram('PLANT_UML')" [disabled]="isSubmitting()"><strong>PlantUML</strong><small>Código editable y reutilizable</small></button>
         <button type="button" (click)="downloadGeneratedBackend()" [disabled]="isSubmitting()"><strong>Backend Spring Boot</strong><small>ZIP con capas, CRUD y migración PostgreSQL</small></button>
+        <button type="button" (click)="downloadGeneratedFlutter()" [disabled]="isSubmitting()"><strong>Aplicación Flutter</strong><small>ZIP móvil CRUD con API y Ollama opcional</small></button>
       </div>
     </app-ui-dialog>
   }
+
+  <app-diagram-assistant-panel
+    [open]="isAssistantDialogOpen()"
+    [isSubmitting]="isSubmitting()"
+    [errorMessage]="assistantError()"
+    [preview]="assistantPreview()"
+    (closed)="closeAssistantDialog()"
+    (opened)="openAssistantDialog()"
+    (commandRequested)="executeAssistantCommand($event)"
+  />
 
 </section>

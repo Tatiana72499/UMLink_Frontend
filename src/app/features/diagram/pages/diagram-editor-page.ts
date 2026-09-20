@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnDestroy, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,8 +7,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthSessionService, isVersionConflict } from '../../../core';
 import { CollaborationWebSocketService, DiagramEvent } from '../../collaboration';
 import { UiButtonComponent, UiDialogComponent } from '../../../shared';
+import { DiagramAssistantPanelComponent } from '../../assistant';
 import { DiagramApiService } from '../data-access/diagram-api.service';
-import { AttributeDataType, Diagram, DiagramActivity, DiagramDrawing, InterchangeFormat, OperationReturnType, RelationAlignmentPoint, RelationType, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
+import { AssistantCommandResponse, AttributeDataType, Diagram, DiagramActivity, DiagramDrawing, ExecuteAssistantCommandRequest, InterchangeFormat, OperationReturnType, RelationAlignmentPoint, RelationType, UmlAttribute, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
 import { ProjectApiService } from '../../projects/data-access/project-api.service';
 import { ProjectRole } from '../../projects/models/project.model';
 
@@ -26,7 +28,7 @@ type ActivityHistoryState = 'idle' | 'loading' | 'ready' | 'error';
 
 @Component({
   selector: 'app-diagram-editor-page',
-  imports: [ReactiveFormsModule, RouterLink, NgTemplateOutlet, UiButtonComponent, UiDialogComponent],
+  imports: [ReactiveFormsModule, RouterLink, NgTemplateOutlet, UiButtonComponent, UiDialogComponent, DiagramAssistantPanelComponent],
   templateUrl: './diagram-editor-page.html',
   styleUrl: './diagram-editor-page.scss',
 })
@@ -54,10 +56,21 @@ export class DiagramEditorPage implements OnDestroy {
   readonly isAssociationClassDialogOpen = signal(false);
   readonly isActivityDialogOpen = signal(false);
   readonly isExportDialogOpen = signal(false);
+  readonly isAssistantDialogOpen = signal(false);
+  readonly assistantPreview = signal<AssistantCommandResponse | null>(null);
+  readonly assistantError = signal('');
   readonly isSummaryVisible = signal(true);
   readonly activityHistory = signal<DiagramActivity[]>([]);
   readonly activityHistoryState = signal<ActivityHistoryState>('idle');
   readonly activitySummary = computed(() => this.activityHistory().slice(0, 3));
+  readonly designAdvice = computed(() => {
+    const classes = this.classes();
+    if (classes.length === 0) return 'Crea una clase que represente una entidad importante de tu dominio.';
+    const withoutPrimaryKey = classes.filter((item) => !item.attributes.some((attribute) => attribute.primaryKey));
+    if (withoutPrimaryKey.length > 0) return `Considera definir una llave primaria para ${withoutPrimaryKey[0].name}.`;
+    if (this.relations().length === 0 && classes.length > 1) return 'Tus clases aún no están relacionadas. Agrega una asociación si comparten información.';
+    return `El modelo tiene ${classes.length} clases y ${this.relations().length} relaciones. Revisa que cada relación represente una regla del negocio.`;
+  });
   readonly isSubmitting = signal(false);
   readonly editorMode = signal<EditorMode>('select');
   readonly pendingClassName = signal<string | null>(null);
@@ -74,6 +87,8 @@ export class DiagramEditorPage implements OnDestroy {
   readonly deleteTarget = signal<DeleteTarget | null>(null);
   readonly freehandPaths = signal<DiagramDrawing[]>([]);
   readonly currentDrawing = signal<string | null>(null);
+  readonly drawingColor = signal('#315B85');
+  readonly eraserPointer = signal<CanvasPoint | null>(null);
   readonly zoom = signal(1);
   readonly editingRelationLabelId = signal<string | null>(null);
   readonly editingCanvasCardinality = signal<CanvasCardinalityEdit | null>(null);
@@ -155,6 +170,7 @@ export class DiagramEditorPage implements OnDestroy {
     value: ['1..1', Validators.required],
   });
   private draggedClassId: string | null = null;
+  private draggedAttribute: { classId: string; attributeId: string } | null = null;
   private dragOffsetX = 0;
   private dragOffsetY = 0;
   private isErasing = false;
@@ -234,6 +250,43 @@ export class DiagramEditorPage implements OnDestroy {
 
   closeExportDialog(): void { this.isExportDialogOpen.set(false); }
 
+  openAssistantDialog(): void {
+    if (!this.ensureCanEdit()) return;
+    this.assistantPreview.set(null);
+    this.assistantError.set('');
+    this.isAssistantDialogOpen.set(true);
+  }
+
+  closeAssistantDialog(): void {
+    this.isAssistantDialogOpen.set(false);
+    this.assistantPreview.set(null);
+    this.assistantError.set('');
+  }
+
+  executeAssistantCommand(request: ExecuteAssistantCommandRequest): void {
+    if (!this.ensureCanEdit()) return;
+    const diagram = this.diagram();
+    if (!diagram) return;
+    this.assistantError.set('');
+    this.isSubmitting.set(true);
+    this.diagramApi.executeAssistantCommand(diagram.id, request).subscribe({
+      next: (response) => {
+        this.isSubmitting.set(false);
+        if (response.requiresConfirmation) {
+          this.assistantPreview.set(response);
+          return;
+        }
+        this.closeAssistantDialog();
+        this.successMessage.set(response.summary);
+        this.loadDiagram();
+      },
+      error: (error: unknown) => {
+        this.isSubmitting.set(false);
+        this.assistantError.set(this.assistantErrorMessage(error));
+      },
+    });
+  }
+
   downloadDiagram(format: InterchangeFormat): void {
     const diagram = this.diagram();
     if (!diagram) return;
@@ -265,6 +318,24 @@ export class DiagramEditorPage implements OnDestroy {
       },
       error: () => {
         this.errorMessage.set('No pudimos generar el backend. Revisa que el diagrama tenga al menos una clase válida.');
+        this.isSubmitting.set(false);
+      },
+    });
+  }
+
+  downloadGeneratedFlutter(): void {
+    const diagram = this.diagram();
+    if (!diagram) return;
+    this.isSubmitting.set(true);
+    this.diagramApi.generateFlutter(diagram.id).subscribe({
+      next: (file) => {
+        this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}-flutter.zip`);
+        this.closeExportDialog();
+        this.successMessage.set('La aplicación Flutter CRUD fue descargada.');
+        this.isSubmitting.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('No pudimos generar la aplicación Flutter. Revisa que el diagrama tenga al menos una clase válida.');
         this.isSubmitting.set(false);
       },
     });
@@ -423,6 +494,7 @@ export class DiagramEditorPage implements OnDestroy {
   }
 
   saveClass(): void {
+    if (this.isSubmitting()) return;
     if (!this.ensureCanEdit()) return;
     const umlClass = this.selectedClass();
     if (!umlClass || this.classEditForm.invalid) {
@@ -571,6 +643,7 @@ export class DiagramEditorPage implements OnDestroy {
   }
 
   saveAttributeEdit(): void {
+    if (this.isSubmitting()) return;
     if (!this.ensureCanEdit()) return;
     const umlClass = this.selectedClass();
     const attributeId = this.editingAttributeId();
@@ -597,8 +670,52 @@ export class DiagramEditorPage implements OnDestroy {
     });
   }
 
+  saveClassWhenFocusLeaves(event: FocusEvent): void {
+    const editor = event.currentTarget as HTMLElement;
+    queueMicrotask(() => { if (!editor.contains(document.activeElement)) this.saveClass(); });
+  }
+
+  saveAttributeWhenFocusLeaves(event: FocusEvent): void {
+    const editor = event.currentTarget as HTMLElement;
+    queueMicrotask(() => { if (!editor.contains(document.activeElement)) this.saveAttributeEdit(); });
+  }
+
+  orderedAttributes(umlClass: UmlClass): UmlAttribute[] {
+    return [...umlClass.attributes].sort((left, right) => Number(right.primaryKey) - Number(left.primaryKey) || (left.attributeOrder ?? 0) - (right.attributeOrder ?? 0));
+  }
+
+  beginAttributeDrag(event: DragEvent, umlClass: UmlClass, attribute: UmlAttribute): void {
+    if (!this.ensureCanEdit()) return;
+    this.draggedAttribute = { classId: umlClass.id, attributeId: attribute.id };
+    event.dataTransfer?.setData('text/plain', attribute.id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  allowAttributeDrop(event: DragEvent): void { if (this.draggedAttribute) event.preventDefault(); }
+
+  dropAttribute(event: DragEvent, umlClass: UmlClass, target: UmlAttribute): void {
+    event.preventDefault();
+    const dragging = this.draggedAttribute;
+    this.draggedAttribute = null;
+    if (!dragging || dragging.classId !== umlClass.id || dragging.attributeId === target.id) return;
+    const previous = umlClass.attributes;
+    const ordered = this.orderedAttributes(umlClass);
+    const from = ordered.findIndex((item) => item.id === dragging.attributeId);
+    const to = ordered.findIndex((item) => item.id === target.id);
+    if (from < 0 || to < 0) return;
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    const normalized = ordered.sort((left, right) => Number(right.primaryKey) - Number(left.primaryKey)).map((item, index) => ({ ...item, attributeOrder: index }));
+    this.classes.update((items) => items.map((item) => item.id === umlClass.id ? { ...item, attributes: normalized } : item));
+    this.diagramApi.reorderAttributes(umlClass.id, normalized.map((item) => item.id)).subscribe({
+      next: (attributes) => this.classes.update((items) => items.map((item) => item.id === umlClass.id ? { ...item, attributes } : item)),
+      error: () => { this.classes.update((items) => items.map((item) => item.id === umlClass.id ? { ...item, attributes: previous } : item)); this.errorMessage.set('No pudimos guardar el nuevo orden de atributos.'); },
+    });
+  }
+
   onCanvasPointerMove(event: PointerEvent, canvas: HTMLElement): void {
     const point = this.pointFromEvent(event, canvas);
+    if (this.editorMode() === 'erase') this.eraserPointer.set(point);
     if (this.editorMode() === 'draw') {
       this.extendDrawing(point);
       return;
@@ -637,8 +754,10 @@ export class DiagramEditorPage implements OnDestroy {
       return;
     }
     if (this.editorMode() === 'erase') {
+      const point = this.pointFromEvent(event, canvas);
+      this.eraserPointer.set(point);
       this.isErasing = true;
-      this.eraseDrawingAt(this.pointFromEvent(event, canvas));
+      this.eraseDrawingAt(point);
       return;
     }
     if (this.editorMode() === 'place-class') {
@@ -759,8 +878,10 @@ export class DiagramEditorPage implements OnDestroy {
     }
     this.cancelEditorAction();
     this.editorMode.set('draw');
-    this.successMessage.set('Lápiz activo: cada trazo se comparte al soltarlo.');
+    this.successMessage.set('Lápiz activo: vuelve a presionar el mismo botón para salir.');
   }
+
+
 
   clearDrawings(): void {
     if (!this.ensureCanEdit()) return;
@@ -779,6 +900,7 @@ export class DiagramEditorPage implements OnDestroy {
     if (!this.ensureCanEdit()) return;
     if (this.editorMode() === 'erase') {
       this.editorMode.set('select');
+      this.eraserPointer.set(null);
       return;
     }
     this.cancelEditorAction();
@@ -1344,7 +1466,7 @@ export class DiagramEditorPage implements OnDestroy {
     const current = this.currentDrawing();
     this.currentDrawing.set(null);
     if (!current || !this.diagramId) return;
-    this.diagramApi.createDrawing(this.diagramId, current).subscribe({
+    this.diagramApi.createDrawing(this.diagramId, current, this.drawingColor()).subscribe({
       next: (drawing) => {
         this.freehandPaths.update((drawings) => [...drawings, drawing]);
         this.collaboration.publishEphemeral('DRAWING_PREVIEW_CLEARED', null);
@@ -1354,6 +1476,12 @@ export class DiagramEditorPage implements OnDestroy {
         this.errorMessage.set('No pudimos compartir este trazo. Inténtalo nuevamente.');
       },
     });
+  }
+
+  setDrawingColor(color: string): void {
+    this.drawingColor.set(color);
+    if (this.editorMode() !== 'draw') this.toggleDrawingMode();
+    this.successMessage.set('Color del lápiz actualizado.');
   }
 
   private publishDrawingPreview(svgPath: string, force = false): void {
@@ -1551,6 +1679,13 @@ export class DiagramEditorPage implements OnDestroy {
     if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y);
     const projection = Math.max(0, Math.min(1, ((point.x - start.x) * deltaX + (point.y - start.y) * deltaY) / lengthSquared));
     return Math.hypot(point.x - (start.x + projection * deltaX), point.y - (start.y + projection * deltaY));
+  }
+
+  private assistantErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && typeof error.error?.message === 'string') {
+      return error.error.message;
+    }
+    return 'No pudimos interpretar el comando. Revisa el ejemplo e inténtalo nuevamente.';
   }
 
 }

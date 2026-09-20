@@ -136,7 +136,7 @@
           <span class="file-picker-name">{{ imageFile()?.name || 'Ninguna imagen seleccionada' }}</span>
         </span>
       </label>
-      <p class="interchange-hint">PNG, JPG o WEBP, hasta 2 MB. Los resultados pueden requerir revisión si la imagen no es nítida.</p>
+      <p class="interchange-hint">PNG, JPG o WEBP, hasta 8 MB. El análisis de diagramas grandes puede tardar hasta 3 minutos. Los resultados pueden requerir revisión si la imagen no es nítida.</p>
       @if (imagePreview(); as preview) {
         <section class="ai-preview" aria-label="Vista previa PlantUML">
           <div><strong>Propuesta lista</strong><span>{{ preview.classCount }} clase(s) · {{ preview.relationCount }} relación(es)</span></div>

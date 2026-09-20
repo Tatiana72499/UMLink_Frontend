@@ -138,6 +138,9 @@ h1 {
   text-decoration: none;
 }
 .feedback-card {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid #dbe7f4;
   border-radius: 1rem;
@@ -175,7 +178,11 @@ h1 {
   background: #fff0f0;
   color: #b43b3b;
 }
-.skeleton-card {
+.feedback-eyebrow { color: #b43b3b; font-size: .7rem; font-weight: 850; letter-spacing: .09em; margin: 0 0 .55rem; }
+.feedback-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .7rem; justify-content: center; margin-top: .55rem; }
+.feedback-actions a { border: 1px solid #c8d9ea; border-radius: .55rem; color: #245b90; font-size: .86rem; font-weight: 750; padding: .65rem .9rem; text-decoration: none; }
+.feedback-actions a:hover, .feedback-actions a:focus-visible { background: #edf6ff; outline: 2px solid #9ac7ef; outline-offset: 2px; }
+.feedback-link { border-color: transparent !important; }.skeleton-card {
   animation: shimmer 1.2s ease-in-out infinite alternate;
   background: #e9f1f9;
   border-radius: 0.85rem;

@@ -1,7 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { API_URL } from '../../../core';
+import { API_URL, REQUEST_TIMEOUT_MS } from '../../../core';
 import {
   CreateDiagramRequest,
   CreateAttributeRequest,
@@ -15,6 +15,8 @@ import {
   UpdateAttributeRequest,
   UpdateDiagramRequest,
   Diagram,
+  AssistantCommandResponse,
+  ExecuteAssistantCommandRequest,
   DiagramImagePreview,
   DiagramActivity,
   DiagramDrawing,
@@ -52,6 +54,16 @@ export class DiagramApiService {
     return this.http.get<DiagramDetails>(`${this.apiUrl}/diagrams/${diagramId}`);
   }
 
+  executeAssistantCommand(
+    diagramId: string,
+    request: ExecuteAssistantCommandRequest,
+  ): Observable<AssistantCommandResponse> {
+    return this.http.post<AssistantCommandResponse>(
+      `${this.apiUrl}/diagrams/${diagramId}/assistant/commands`,
+      request,
+    );
+  }
+
   export(diagramId: string, format: InterchangeFormat): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/diagrams/${diagramId}/export`, {
       params: { format },
@@ -65,6 +77,12 @@ export class DiagramApiService {
     });
   }
 
+  generateFlutter(diagramId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/diagrams/${diagramId}/generate/flutter`, {
+      responseType: 'blob',
+    });
+  }
+
   import(projectId: string, file: File): Observable<Diagram> {
     const body = new FormData();
     body.append('file', file, file.name);
@@ -74,15 +92,17 @@ export class DiagramApiService {
   previewImage(projectId: string, file: File): Observable<DiagramImagePreview> {
     const body = new FormData();
     body.append('file', file, file.name);
-    return this.http.post<DiagramImagePreview>(`${this.apiUrl}/projects/${projectId}/diagrams/ai/image-preview`, body);
+    return this.http.post<DiagramImagePreview>(`${this.apiUrl}/projects/${projectId}/diagrams/ai/image-preview`, body, {
+      context: new HttpContext().set(REQUEST_TIMEOUT_MS, 180_000),
+    });
   }
 
   findActivity(diagramId: string): Observable<DiagramActivity[]> {
     return this.http.get<DiagramActivity[]>(`${this.apiUrl}/diagrams/${diagramId}/activity`);
   }
 
-  createDrawing(diagramId: string, svgPath: string): Observable<DiagramDrawing> {
-    return this.http.post<DiagramDrawing>(`${this.apiUrl}/diagrams/${diagramId}/drawings`, { svgPath });
+  createDrawing(diagramId: string, svgPath: string, strokeColor: string): Observable<DiagramDrawing> {
+    return this.http.post<DiagramDrawing>(`${this.apiUrl}/diagrams/${diagramId}/drawings`, { svgPath, strokeColor });
   }
 
   deleteDrawing(diagramId: string, drawingId: string): Observable<void> {
@@ -107,6 +127,10 @@ export class DiagramApiService {
 
   updateAttribute(attributeId: string, request: UpdateAttributeRequest): Observable<UmlAttribute> {
     return this.http.put<UmlAttribute>(`${this.apiUrl}/attributes/${attributeId}`, request);
+  }
+
+  reorderAttributes(classId: string, attributeIds: string[]): Observable<UmlAttribute[]> {
+    return this.http.put<UmlAttribute[]>(`${this.apiUrl}/classes/${classId}/attributes/order`, { attributeIds });
   }
 
   deleteAttribute(attributeId: string): Observable<void> {

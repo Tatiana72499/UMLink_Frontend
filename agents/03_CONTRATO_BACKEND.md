@@ -19,9 +19,11 @@ GET/POST /projects/{projectId}/diagrams
 GET      /diagrams/{diagramId}
 GET      /diagrams/{diagramId}/export?format=XML|XMI|EA_XMI|EA_SCRIPT|PLANT_UML
 GET      /diagrams/{diagramId}/generate/backend (ZIP de Spring Boot + Flyway)
+GET      /diagrams/{diagramId}/generate/flutter (ZIP de Flutter CRUD)
 POST     /projects/{projectId}/diagrams/import (multipart: file)
 POST     /projects/{projectId}/diagrams/ai/image-preview (multipart: file PNG|JPG|WEBP, no persiste)
 GET      /diagrams/{diagramId}/activity
+POST     /diagrams/{diagramId}/assistant/commands
 PUT      /diagrams/{diagramId}
 DELETE   /diagrams/{diagramId}?version={version}
 POST     /diagrams/{diagramId}/drawings
@@ -50,7 +52,7 @@ DELETE   /relations/{id}
 - El interceptor agrega `Authorization: Bearer <token>` a las llamadas de API.
 - Las rutas de proyectos y diagramas requieren sesión. El propietario se asigna en el backend desde el JWT; `CreateProjectRequest` solo contiene `name` y `description`.
 - Las respuestas de proyecto y diagrama incluyen `version`. Para actualizar, el frontend envía la versión recibida; para eliminar, la envía como parámetro `version`. Si recibe `409 VERSION_CONFLICT`, debe recargar el recurso antes de permitir otro intento.
-- Las relaciones de asociación, agregación y composición incluyen cardinalidad de origen y destino. Las únicas opciones son `1..1`, `0..1` y `1..*`. Generalización representa herencia; realización y dependencia no usan cardinalidad.
+- Las relaciones de asociación, agregación y composición incluyen cardinalidad de origen y destino. Las únicas opciones son `1..1`, `0..1`, `1..*` y `0..*`. Generalización representa herencia; realización y dependencia no usan cardinalidad.
 - Una relación puede conectar una clase consigo misma para modelar una relación recursiva. La clase intermedia se mantiene exclusivamente para asociaciones entre dos clases diferentes; el backend fija sus dos cardinalidades en `1..*` porque representa una relación muchos-a-muchos.
 - `PUT /relations/{id}/cardinality` recibe `{ sourceCardinality, targetCardinality }`; solo aplica a asociación, agregación y composición y conserva las clases y el tipo de la relación.
 - Las solicitudes de atributos incluyen `primaryKey` booleano; solo un atributo de cada clase puede estar marcado como llave primaria. Al marcar otro, el backend desmarca el anterior y el editor refleja el reemplazo. `PUT /attributes/{id}` actualiza nombre, tipo, visibilidad y llave primaria. `PUT /relations/{id}` actualiza sus extremos, tipo y cardinalidades validadas.
@@ -66,6 +68,12 @@ El frontend debe usar los DTOs en `features/projects/models` y `features/diagram
 El análisis de imagen admite PNG, JPG o WEBP de hasta 2 MB. La respuesta es `{ plantUml, suggestedName, classCount, relationCount }` y nunca persiste cambios. El frontend debe mostrarla como propuesta revisable y, solo tras confirmación de la persona usuaria, usar la importación PlantUML para crear un diagrama nuevo.
 
 La generación de backend devuelve un ZIP no persistido. El editor lo descarga desde el diálogo “Descargar”; incluye Spring Boot, capas CRUD por clase y `V1__initial_schema.sql` para PostgreSQL. Si el diagrama no tiene clases válidas, se muestra el error seguro retornado por el backend.
+
+La generación Flutter devuelve un ZIP no persistido con una app CRUD basada en los atributos propios de las clases válidas del modelo. La app generada usa `API_BASE_URL` configurable para consumir el backend generado. Los selectores de relaciones se incorporarán después de que el backend generado exponga IDs relacionados. La configuración de Ollama es opcional y pertenece al proyecto Flutter descargado; Angular/UMLink no deben enviar diagramas a Ollama ni administrar sus claves o modelos.
+
+El asistente textual recibe `{ command, confirmed }` y devuelve `{ action, summary, requiresConfirmation }`. Puede crear, mover o renombrar clases; agregar atributos; crear relaciones; y pedir eliminar clases o relaciones. El backend intenta primero su gramática local y, cuando no reconoce una frase, OpenRouter normaliza la instrucción usando solo los nombres de clases del diagrama. La propuesta se valida otra vez en el backend antes de cualquier mutación. Las eliminaciones se muestran como vista previa cuando `requiresConfirmation` es `true`; el frontend solo las confirma reenviando el mismo texto con `confirmed: true`. El mensaje del backend se muestra de forma segura dentro del diálogo. Solo `OWNER` y `EDITOR` pueden abrir y ejecutar comandos.
+
+El dictado de comandos se resuelve localmente en el navegador con `SpeechRecognition` o `webkitSpeechRecognition`, cuando el navegador lo ofrece. No agrega una ruta al backend: la transcripción se muestra a la persona usuaria para revisión y luego sigue exactamente el mismo contrato textual. Cuando la API no está disponible o no se concede permiso de micrófono, el campo de texto continúa siendo la alternativa obligatoria.
 
 `POST /projects/{id}/members` recibe `{ email, role }`, donde `role` es `EDITOR` o `VIEWER`, y requiere una cuenta ya registrada distinta de la propietaria del proyecto. La respuesta contiene `id`, `userId`, `name`, `email` y `role`. Solo `OWNER` administra miembros; `EDITOR` modifica diagramas y `VIEWER` solo los consulta. El enlace del proyecto sirve para navegar, nunca para conceder acceso.
 

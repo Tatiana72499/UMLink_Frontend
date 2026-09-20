@@ -1,22 +1,38 @@
 @if (user(); as currentUser) {
-<header class="app-header">
-  <a class="brand" routerLink="/projects" aria-label="UMLink, ir a proyectos">
-    <span class="brand-mark" aria-hidden="true">U</span>
-    <span>UMLink</span>
-  </a>
+  <header class="app-header">
+    <a class="brand" routerLink="/projects" aria-label="UMLink, ir a proyectos">
+      <span class="brand-mark" aria-hidden="true">U</span>
+      <span>UMLink</span>
+    </a>
 
-  <nav aria-label="Navegación principal">
-    <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Proyectos</a>
-    <a routerLink="/diagram" [class.active]="isEditorActive()">Editor</a>
-  </nav>
+    <nav aria-label="Navegación principal">
+      <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Proyectos</a>
+      <a routerLink="/diagram" [class.active]="isEditorActive()">Editor</a>
+    </nav>
 
-  <span class="user-name">{{ currentUser.name }}</span>
-  <button class="profile-button" type="button" aria-label="Cerrar sesión" (click)="logout()">
-    {{ currentUser.name.slice(0, 1).toUpperCase() }}
-  </button>
-</header>
+    <span class="user-name">{{ currentUser.name }}</span>
+    <div class="profile-menu">
+      <button class="profile-button" type="button" aria-label="Abrir menú de perfil" [attr.aria-expanded]="profileOpen()" (click)="toggleProfile()">
+        {{ currentUser.name.slice(0, 1).toUpperCase() }}
+      </button>
+      @if (profileOpen()) {
+        <section class="profile-popover" aria-label="Perfil de usuario">
+          <div class="profile-summary">
+            <span class="profile-avatar" aria-hidden="true">{{ currentUser.name.slice(0, 1).toUpperCase() }}</span>
+            <div><strong>{{ currentUser.name }}</strong><small>{{ currentUser.email }}</small></div>
+          </div>
+          <button class="logout-button" type="button" (click)="logout()"><span aria-hidden="true">↪</span> Cerrar sesión</button>
+        </section>
+      }
+    </div>
+  </header>
 }
 
 <main class="app-content">
+  @if (network.notice()) {
+    <aside class="network-notice" [class.offline]="!network.online()" role="status" aria-live="polite">
+      <span>{{ network.notice() }}</span><button type="button" (click)="network.dismiss()" aria-label="Cerrar aviso">×</button>
+    </aside>
+  }
   <router-outlet />
 </main>

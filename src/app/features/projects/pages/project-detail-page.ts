@@ -192,9 +192,9 @@ export class ProjectDetailPage {
       this.imageAnalysisError.set('Selecciona una imagen PNG, JPG o WEBP.');
       return;
     }
-    if (file.size > 2_000_000) {
+    if (file.size > 8_000_000) {
       this.imageFile.set(null);
-      this.imageAnalysisError.set('La imagen supera el límite de 2 MB permitido.');
+      this.imageAnalysisError.set('La imagen supera el límite de 8 MB permitido.');
       return;
     }
     this.imageAnalysisError.set('');
@@ -216,7 +216,7 @@ export class ProjectDetailPage {
         this.isImageAnalyzing.set(false);
       },
       error: (error: unknown) => {
-        this.imageAnalysisError.set(this.importErrorMessage(error));
+        this.imageAnalysisError.set(this.imageAnalysisErrorMessage(error));
         this.isImageAnalyzing.set(false);
       },
     });
@@ -290,6 +290,25 @@ export class ProjectDetailPage {
       }
     }
     return 'No pudimos importar el archivo. Verifica que sea XML, XMI o PlantUML compatible y vuelve a intentarlo.';
+  }
+
+  private imageAnalysisErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (typeof error.error === 'string' && error.error.trim()) {
+        return `No pudimos analizar la imagen: ${error.error}`;
+      }
+      if (typeof error.error === 'object' && error.error !== null) {
+        const message = (error.error as { message?: unknown }).message;
+        if (typeof message === 'string' && message.trim()) return `No pudimos analizar la imagen: ${message}`;
+      }
+      if (error.status === 0) {
+        return 'No pudimos conectar con UMLink. Verifica que el backend esté iniciado y tu conexión vuelva a estar disponible.';
+      }
+      if (error.status === 429) {
+        return 'El proveedor gratuito de IA está temporalmente saturado. Espera unos minutos y vuelve a intentarlo.';
+      }
+    }
+    return 'No pudimos analizar la imagen. El servicio de IA no respondió correctamente; intenta nuevamente en unos minutos.';
   }
 
   openEditProjectDialog(): void {

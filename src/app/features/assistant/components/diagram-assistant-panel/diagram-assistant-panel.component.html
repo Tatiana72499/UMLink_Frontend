@@ -1,0 +1,29 @@
+@if (open) {
+  <section class="assistant-dock" aria-labelledby="assistant-title">
+    <header>
+      <div class="assistant-orb" aria-hidden="true"><span>✦</span></div>
+      <div><p>ASISTENTE UMLINK</p><h2 id="assistant-title">¿En qué modelamos hoy?</h2></div>
+      <button type="button" class="hide-button" aria-label="Ocultar barra del asistente" title="Cerrar asistente" (click)="closed.emit()">×</button>
+    </header>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <label class="sr-only" for="assistant-command">Escribe una instrucción para el asistente</label>
+      <div class="command-box" [class.listening]="voiceState() === 'listening'">
+        <textarea id="assistant-command" formControlName="command" rows="1" placeholder="Describe un cambio en tu diagrama…" autocomplete="off"></textarea>
+        <button type="button" class="voice-button" [class.listening]="voiceState() === 'listening'" (click)="startVoice()" [attr.aria-label]="voiceState() === 'listening' ? 'Escuchando comando de voz' : 'Dictar comando por voz'"><span aria-hidden="true">🎙</span></button>
+        <button type="submit" class="send-button" [disabled]="isSubmitting" [attr.aria-label]="isSubmitting ? 'Analizando instrucción' : 'Enviar instrucción'"><span aria-hidden="true">{{ isSubmitting ? '…' : '➤' }}</span></button>
+      </div>
+      @if (voiceMessage()) { <p class="voice-message" [class.error]="voiceState() === 'error' || voiceState() === 'unsupported'">{{ voiceMessage() }}</p> }
+      @if (form.controls.command.touched && form.controls.command.invalid) { <p class="field-error">Escribe una instrucción de hasta 500 caracteres.</p> }
+      @if (errorMessage) { <p class="assistant-error" role="alert">{{ errorMessage }}</p> }
+      @if (preview; as pending) {
+        <section class="confirmation-card" aria-live="polite"><span aria-hidden="true">!</span><div><strong>Confirma este cambio</strong><p>{{ pending.summary }}</p></div><app-ui-button (pressed)="submit(true)" [disabled]="isSubmitting">Confirmar</app-ui-button></section>
+      }
+      <details class="assistant-suggestions">
+        <summary>Ideas para empezar</summary>
+        <div>@for (suggestion of suggestions; track suggestion) { <button type="button" (click)="useSuggestion(suggestion)">{{ suggestion }}</button> }</div>
+      </details>
+    </form>
+  </section>
+} @else {
+  <button type="button" class="assistant-launcher" (click)="opened.emit()" aria-label="Abrir asistente UMLink"><span aria-hidden="true">✦</span> Asistente</button>
+}

@@ -1,15 +1,16 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectApiService } from '../data-access/project-api.service';
 import { CreateProjectRequest, Project } from '../models/project.model';
-import { UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent } from '../../../shared';
+import { UiButtonComponent, UiDialogComponent, UiEmptyStateComponent } from '../../../shared';
 
 type ProjectListState = 'loading' | 'empty' | 'ready' | 'error';
 
 @Component({
   selector: 'app-project-list-page',
-  imports: [ReactiveFormsModule, RouterLink, UiButtonComponent, UiDialogComponent, UiEmptyStateComponent, UiPanelComponent],
+  imports: [ReactiveFormsModule, RouterLink, UiButtonComponent, UiDialogComponent, UiEmptyStateComponent],
   templateUrl: './project-list-page.html',
   styleUrl: './project-list-page.scss',
 })
@@ -22,6 +23,8 @@ export class ProjectListPage {
   readonly isCreateDialogOpen = signal(false);
   readonly isSubmitting = signal(false);
   readonly errorMessage = signal('');
+  readonly errorTitle = signal('No fue posible cargar los proyectos');
+  readonly requiresLogin = signal(false);
   readonly successMessage = signal('');
   readonly createForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -35,21 +38,35 @@ export class ProjectListPage {
   loadProjects(): void {
     this.state.set('loading');
     this.errorMessage.set('');
+    this.errorTitle.set('No fue posible cargar los proyectos');
+    this.requiresLogin.set(false);
     this.api.findAll().subscribe({
       next: (projects) => {
         this.projects.set(projects);
         this.state.set(projects.length === 0 ? 'empty' : 'ready');
       },
-      error: () => {
+      error: (error: unknown) => {
         this.projects.set([]);
-        this.errorMessage.set(
-          'No pudimos cargar tus proyectos. Verifica que el backend esté activo.',
-        );
+        this.setLoadError(error);
         this.state.set('error');
       },
     });
   }
 
+  private setLoadError(error: unknown): void {
+    if (error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403)) {
+      this.errorTitle.set('Tu sesión necesita iniciarse nuevamente');
+      this.errorMessage.set('Por seguridad, vuelve a iniciar sesión para acceder a tus proyectos.');
+      this.requiresLogin.set(true);
+      return;
+    }
+    if (error instanceof HttpErrorResponse && error.status === 0 || error instanceof Error && error.name === 'TimeoutError') {
+      this.errorTitle.set('No pudimos conectarnos con UMLink');
+      this.errorMessage.set('Revisa tu internet y confirma que el backend esté iniciado. Luego puedes reintentar.');
+      return;
+    }
+    this.errorMessage.set('Ocurrió un problema al cargar tus proyectos. Puedes reintentar o volver al inicio.');
+  }
   openCreateDialog(): void {
     this.successMessage.set('');
     this.isCreateDialogOpen.set(true);

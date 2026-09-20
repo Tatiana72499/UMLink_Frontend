@@ -33,6 +33,7 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Layout responsive de escritorio, tableta y móvil para el editor.
 - [x] Aplicar la misma identidad visual a la pantalla de proyectos.
 - [x] Definir componentes visuales reutilizables en `shared` cuando se repitan: botones, paneles, estados vacíos y diálogos.
+- [x] Incorporar una landing pública, responsive y orientada a conversión en `/`, con accesos claros a registro e inicio de sesión.
 
 **No incluye:** arrastrar elementos, persistencia, WebSocket ni IA.
 
@@ -115,15 +116,28 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 
 ## Fase 7 — IA, voz e interoperabilidad
 
-- Panel de asistencia por comandos concretos, nunca generación opaca de todo el modelo.
-- Flujo de confirmación antes de que la IA cambie el diagrama.
-- Comandos de voz con retroalimentación visible y alternativa de teclado.
+- [x] Panel de asistencia por comandos textuales concretos, con validación del servidor y confirmación antes de eliminar; nunca generación opaca de todo el modelo.
+- [x] Flujo de confirmación antes de que el asistente cambie el diagrama.
+- [x] Comandos de voz con retroalimentación visible y alternativa de teclado, mediante la API de reconocimiento de voz disponible en el navegador.
+- [x] Ampliar la comprensión de lenguaje natural mediante OpenRouter, enviando únicamente la instrucción y los nombres de clases tras aprobación explícita; el backend siempre revalida la propuesta antes de modificar el modelo.
+- [x] Reubicar la interacción del asistente en una barra de chat inferior, minimizable y accesible desde un lanzador compacto.
 - [x] Importar archivos XML UMLink, XMI/UML y PlantUML (`.puml`) en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
 - [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual, script de Automation API compatible con Enterprise Architect 15 o código PlantUML, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.
 - [x] Descargar un backend Spring Boot generado con capas CRUD y migración PostgreSQL desde el diagrama.
 - [x] Integrar vista previa de OpenRouter para transformar una imagen en PlantUML, revisar el resultado y confirmar antes de crear un diagrama nuevo.
 
 **Criterio de salida:** cada sugerencia de IA, voz o importación es revisable, reversible y comprensible por la persona usuaria.
+
+## Fase 8 — Aplicación Flutter generada
+
+- [ ] Definir el contrato v1 de generación UML → Flutter junto al backend.
+- [ ] Descargar un ZIP Flutter CRUD desde un diagrama válido.
+- [ ] Generar modelos, cliente HTTP, listados y formularios tipados por clase UML.
+- [ ] Ampliar el contrato generado con IDs relacionados y representar relaciones persistentes mediante selectores y navegación; documentar relaciones avanzadas que requieren ajuste manual.
+- [ ] Incluir configuración opcional para Ollama dentro de la app generada, sin integrar Ollama en UMLink ni incluir claves.
+- [ ] Validar que el ZIP generado compile, consuma el backend generado y muestre una entidad CRUD real.
+
+**Criterio de salida:** un diagrama compatible produce backend, PostgreSQL y Flutter ejecutables con instrucciones de configuración claras.
 
 ## Reglas para cada incremento
 

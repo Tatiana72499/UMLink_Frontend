@@ -20,6 +20,26 @@ export interface DiagramImagePreview {
   relationCount: number;
 }
 
+export type AssistantCommandAction =
+  | 'CREATE_CLASS'
+  | 'MOVE_CLASS'
+  | 'RENAME_CLASS'
+  | 'CREATE_ATTRIBUTE'
+  | 'CREATE_RELATION'
+  | 'DELETE_CLASS'
+  | 'DELETE_RELATION';
+
+export interface ExecuteAssistantCommandRequest {
+  command: string;
+  confirmed: boolean;
+}
+
+export interface AssistantCommandResponse {
+  action: AssistantCommandAction;
+  summary: string;
+  requiresConfirmation: boolean;
+}
+
 export type InterchangeFormat = 'XML' | 'XMI' | 'EA_XMI' | 'EA_SCRIPT' | 'PLANT_UML';
 
 export interface CreateDiagramRequest {
@@ -40,6 +60,7 @@ export interface DiagramDetails {
 export interface DiagramDrawing {
   id: string;
   svgPath: string;
+  strokeColor?: string;
 }
 
 export interface DiagramActivity {
@@ -81,6 +102,7 @@ export interface UmlAttribute {
   dataType: string;
   visibility: string;
   primaryKey: boolean;
+  attributeOrder?: number;
 }
 
 export interface UmlOperationParameter {

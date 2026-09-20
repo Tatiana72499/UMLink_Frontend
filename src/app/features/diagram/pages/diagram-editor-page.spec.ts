@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { DiagramApiService } from '../data-access/diagram-api.service';
-import { DiagramActivity, DiagramDetails, UmlAttribute, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
+import { AssistantCommandResponse, DiagramActivity, DiagramDetails, UmlAttribute, UmlClass, UmlOperation, UmlRelation } from '../models/diagram.model';
 import { ProjectApiService } from '../../projects/data-access/project-api.service';
 import { AuthSessionService } from '../../../core';
 import { DiagramEditorPage } from './diagram-editor-page';
@@ -70,14 +70,17 @@ describe('DiagramEditorPage', () => {
   let diagramResponse: Observable<DiagramDetails['diagram']>;
   let exportResponse: Observable<Blob>;
   let generatedBackendResponse: Observable<Blob>;
+  let assistantCommandResponse: Observable<AssistantCommandResponse>;
   const projectApiStub: Pick<ProjectApiService, 'findMembers'> = {
     findMembers: () => of([{ id: 'member-1', userId: 'user-1', name: 'Tatiana', email: 'tatiana@umlink.dev', role: 'OWNER' }]),
   };
-  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'export' | 'findActivity' | 'findDetails' | 'generateBackend' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
+  const diagramApiStub: Pick<DiagramApiService, 'clearDrawings' | 'createAttribute' | 'createClass' | 'createDrawing' | 'createOperation' | 'delete' | 'deleteAttribute' | 'deleteClass' | 'deleteDrawing' | 'deleteOperation' | 'deleteRelation' | 'executeAssistantCommand' | 'export' | 'findActivity' | 'findDetails' | 'generateBackend' | 'generateFlutter' | 'import' | 'update' | 'updateAttribute' | 'updateClass' | 'updateOperation' | 'updateRelation' | 'updateRelationCardinality'> = {
     findDetails: () => detailResponse,
     findActivity: () => activityResponse,
     export: () => exportResponse,
     generateBackend: () => generatedBackendResponse,
+    generateFlutter: () => generatedBackendResponse,
+    executeAssistantCommand: () => assistantCommandResponse,
     import: () => diagramResponse,
     update: () => diagramResponse,
     delete: () => voidResponse,
@@ -109,6 +112,7 @@ describe('DiagramEditorPage', () => {
     diagramResponse = of({ ...details.diagram, name: 'Dominio actualizado', version: 1 });
     exportResponse = of(new Blob(['<umlinkUml />'], { type: 'application/xml' }));
     generatedBackendResponse = of(new Blob(['PK'], { type: 'application/zip' }));
+    assistantCommandResponse = of({ action: 'CREATE_CLASS', summary: 'Se creará la clase “Tarea”.', requiresConfirmation: false });
     await TestBed.configureTestingModule({
       imports: [DiagramEditorPage],
       providers: [
@@ -287,6 +291,30 @@ describe('DiagramEditorPage', () => {
     component.openExportDialog();
 
     expect(component.isExportDialogOpen()).toBe(true);
+  });
+
+  it('ejecuta un comando del asistente y recarga el diagrama', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.openAssistantDialog();
+    component.executeAssistantCommand({ command: 'crear clase Tarea', confirmed: false });
+
+    expect(component.isAssistantDialogOpen()).toBe(false);
+    expect(component.successMessage()).toContain('Tarea');
+  });
+
+  it('muestra confirmación antes de una eliminación por comando', () => {
+    assistantCommandResponse = of({ action: 'DELETE_CLASS', summary: 'Eliminarás la clase “Usuario”.', requiresConfirmation: true });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.openAssistantDialog();
+    component.executeAssistantCommand({ command: 'eliminar clase Usuario', confirmed: false });
+
+    expect(component.assistantPreview()?.requiresConfirmation).toBe(true);
   });
 
   it('actualiza una clase seleccionada', () => {

@@ -22,12 +22,17 @@
     </section>
   }
   @if (state() === 'error') {
-    <app-ui-panel variant="danger" class="feedback-card error-card" role="alert">
+    <section class="feedback-card error-card" role="alert" aria-live="assertive">
       <span class="feedback-icon" aria-hidden="true">!</span>
-      <h2>No fue posible cargar los proyectos</h2>
+      <p class="feedback-eyebrow">NO PUDIMOS CONECTAR</p>
+      <h2>{{ errorTitle() }}</h2>
       <p>{{ errorMessage() }}</p>
-      <app-ui-button variant="secondary" (pressed)="loadProjects()">Reintentar</app-ui-button>
-    </app-ui-panel>
+      <div class="feedback-actions">
+        @if (requiresLogin()) { <a routerLink="/auth/login">Iniciar sesión</a> }
+        @else { <app-ui-button variant="secondary" (pressed)="loadProjects()">Reintentar</app-ui-button> }
+        <a class="feedback-link" routerLink="/">Ir al inicio</a>
+      </div>
+    </section>
   }
   @if (state() === 'empty') {
     <app-ui-empty-state title="Tu espacio está listo para empezar" message="Crea tu primer proyecto para diseñar y compartir diagramas UML.">
