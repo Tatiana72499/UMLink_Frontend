@@ -108,6 +108,14 @@
             <p>{{ designAdvice() }}</p>
           </div>
         </div>
+        @if (canEdit()) {
+          <section class="quick-help generation-panel" aria-label="Generar aplicación desde el diagrama">
+            <strong>Generar aplicación</strong>
+            <p>Descarga una base lista para continuar tu proyecto.</p>
+            <app-ui-button (pressed)="downloadGeneratedBackend()">Backend Spring Boot</app-ui-button>
+            <app-ui-button variant="secondary" (pressed)="downloadGeneratedFlutter()">Aplicación Flutter</app-ui-button>
+          </section>
+        }
       </aside>
 
       <section class="canvas" #canvas aria-label="Lienzo del diagrama" [class.placing-class]="editorMode() === 'place-class'" [class.creating-relation]="editorMode() === 'create-relation'" [class.drawing]="editorMode() === 'draw'" [class.erasing]="editorMode() === 'erase'" (pointerdown)="onCanvasPointerDown($event, canvas)" (pointermove)="onCanvasPointerMove($event, canvas)" (pointerup)="onCanvasPointerUp()" (pointercancel)="onCanvasPointerUp()">
@@ -557,10 +565,7 @@
         <button type="button" (click)="downloadDiagram('XMI')" [disabled]="isSubmitting()"><strong>XMI UML</strong><small>Clases y relaciones compatibles</small></button>
         <button type="button" (click)="downloadDiagram('EA_XMI')" [disabled]="isSubmitting()"><strong>Enterprise Architect 15</strong><small>Diagrama visual con posiciones</small></button>
         <button type="button" (click)="downloadDiagram('EA_SCRIPT')" [disabled]="isSubmitting()"><strong>Script Enterprise Architect</strong><small>Genera clases y relaciones dentro de EA</small></button>
-        <button type="button" (click)="downloadDiagram('PLANT_UML')" [disabled]="isSubmitting()"><strong>PlantUML</strong><small>Código editable y reutilizable</small></button>
-        <button type="button" (click)="downloadGeneratedBackend()" [disabled]="isSubmitting()"><strong>Backend Spring Boot</strong><small>ZIP con capas, CRUD y migración PostgreSQL</small></button>
-        <button type="button" (click)="downloadGeneratedFlutter()" [disabled]="isSubmitting()"><strong>Aplicación Flutter</strong><small>ZIP móvil CRUD con API y Ollama opcional</small></button>
-      </div>
+        <button type="button" (click)="downloadDiagram('PLANT_UML')" [disabled]="isSubmitting()"><strong>PlantUML</strong><small>Código editable y reutilizable</small></button>      </div>
     </app-ui-dialog>
   }
 

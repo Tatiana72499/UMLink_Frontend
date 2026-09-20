@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -18,7 +18,7 @@ type ProjectDetailState = 'loading' | 'empty' | 'ready' | 'error';
   templateUrl: './project-detail-page.html',
   styleUrl: './project-detail-page.scss',
 })
-export class ProjectDetailPage {
+export class ProjectDetailPage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authSession = inject(AuthSessionService);
@@ -27,6 +27,7 @@ export class ProjectDetailPage {
   private readonly formBuilder = inject(FormBuilder);
   private readonly projectId = this.route.snapshot.paramMap.get('projectId');
   private readonly shouldOpenShareDialog = this.route.snapshot.fragment === 'share';
+  private successMessageTimeout: ReturnType<typeof setTimeout> | null = null;
 
   readonly state = signal<ProjectDetailState>('loading');
   readonly project = signal<Project | null>(null);
@@ -68,6 +69,8 @@ export class ProjectDetailPage {
   constructor() {
     this.loadProject();
   }
+
+  ngOnDestroy(): void { this.dismissSuccess(); }
 
   loadProject(): void {
     if (!this.projectId) {
@@ -118,8 +121,20 @@ export class ProjectDetailPage {
     }
     this.inviteError.set('');
     this.isSubmitting.set(true);
-    this.projectApi.addMember(this.projectId, request).subscribe({ next: (member) => { this.members.update((items) => [...items.filter((item) => item.id !== member.id), member]); this.successMessage.set(`${member.name} ahora puede acceder al proyecto.`); this.inviteForm.reset({ email: '', role: 'EDITOR' }); this.isSubmitting.set(false); }, error: () => { this.inviteError.set('No pudimos agregar a esa persona. Verifica que tenga una cuenta registrada.'); this.isSubmitting.set(false); } });
+    this.projectApi.addMember(this.projectId, request).subscribe({ next: (member) => { this.members.update((items) => [...items.filter((item) => item.id !== member.id), member]); this.showSuccess(`${member.name} ahora puede acceder al proyecto.`); this.inviteForm.reset({ email: '', role: 'EDITOR' }); this.isSubmitting.set(false); }, error: () => { this.inviteError.set('No pudimos agregar a esa persona. Verifica que tenga una cuenta registrada.'); this.isSubmitting.set(false); } });
   }
+  private showSuccess(message: string): void {
+    this.dismissSuccess();
+    this.successMessage.set(message);
+    this.successMessageTimeout = setTimeout(() => this.dismissSuccess(), 6_000);
+  }
+
+  private dismissSuccess(): void {
+    if (this.successMessageTimeout) clearTimeout(this.successMessageTimeout);
+    this.successMessageTimeout = null;
+    this.successMessage.set('');
+  }
+
   private isOwnerEmail(email: string): boolean {
     const normalizedEmail = email.trim().toLowerCase();
     return this.members().some((member) => member.role === 'OWNER' && member.email.trim().toLowerCase() === normalizedEmail);
@@ -136,7 +151,7 @@ export class ProjectDetailPage {
 
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/projects/${this.projectId}`);
-      this.successMessage.set('Enlace del proyecto copiado. Recuerda que el acceso requiere invitación.');
+      this.showSuccess('Enlace del proyecto copiado. Recuerda que el acceso requiere invitación.');
     } catch {
       this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
     }
@@ -147,7 +162,7 @@ export class ProjectDetailPage {
   }
 
   openCreateDialog(): void {
-    this.successMessage.set('');
+    this.dismissSuccess();
     this.isCreateDialogOpen.set(true);
   }
 
@@ -232,7 +247,7 @@ export class ProjectDetailPage {
       next: (diagram) => {
         this.diagrams.update((diagrams) => [diagram, ...diagrams]);
         this.state.set('ready');
-        this.successMessage.set(`El diagrama “${diagram.name}” fue creado desde la propuesta de IA.`);
+        this.showSuccess(`El diagrama “${diagram.name}” fue creado desde la propuesta de IA.`);
         this.closeImageAnalysisDialog();
         this.isSubmitting.set(false);
       },
@@ -271,7 +286,7 @@ export class ProjectDetailPage {
       next: (diagram) => {
         this.diagrams.update((diagrams) => [diagram, ...diagrams]);
         this.state.set('ready');
-        this.successMessage.set(`El diagrama “${diagram.name}” fue importado correctamente.`);
+        this.showSuccess(`El diagrama “${diagram.name}” fue importado correctamente.`);
         this.closeImportDialog();
         this.isSubmitting.set(false);
       },
@@ -333,7 +348,7 @@ export class ProjectDetailPage {
     this.projectApi.update(project.id, request).subscribe({
       next: (updatedProject) => {
         this.project.set(updatedProject);
-        this.successMessage.set('El proyecto fue actualizado correctamente.');
+        this.showSuccess('El proyecto fue actualizado correctamente.');
         this.isEditProjectDialogOpen.set(false);
         this.isSubmitting.set(false);
       },
@@ -383,7 +398,7 @@ export class ProjectDetailPage {
     this.diagramApi.update(diagram.id, { ...this.diagramEditForm.getRawValue(), version: diagram.version }).subscribe({
       next: (updatedDiagram) => {
         this.diagrams.update((diagrams) => diagrams.map((item) => item.id === updatedDiagram.id ? updatedDiagram : item));
-        this.successMessage.set('El diagrama fue actualizado correctamente.');
+        this.showSuccess('El diagrama fue actualizado correctamente.');
         this.closeEditDiagramDialog();
         this.isSubmitting.set(false);
       },
@@ -406,7 +421,7 @@ export class ProjectDetailPage {
       next: () => {
         this.diagrams.update((diagrams) => diagrams.filter((item) => item.id !== diagram.id));
         this.state.set(this.diagrams().length === 0 ? 'empty' : 'ready');
-        this.successMessage.set('El diagrama fue eliminado.');
+        this.showSuccess('El diagrama fue eliminado.');
         this.cancelDiagramDeletion();
         this.isSubmitting.set(false);
       },
@@ -428,7 +443,7 @@ export class ProjectDetailPage {
       next: (diagram) => {
         this.diagrams.update((diagrams) => [diagram, ...diagrams]);
         this.state.set('ready');
-        this.successMessage.set(`El diagrama “${diagram.name}” fue creado correctamente.`);
+        this.showSuccess(`El diagrama “${diagram.name}” fue creado correctamente.`);
         this.isSubmitting.set(false);
         this.closeCreateDialog();
       },

@@ -381,3 +381,22 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Acciones de proyecto con el mismo lenguaje visual que el resto de UMLink. */
+.diagram-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.diagram-actions button, .project-danger-zone button {
+  background: #eef6ff;
+  border: 1px solid #c4dcf5;
+  border-radius: .45rem;
+  padding: .42rem .62rem;
+  text-decoration: none;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.diagram-actions button:hover, .diagram-actions button:focus-visible { background: #dfefff; border-color: #8ebde7; outline: 2px solid #c7e3fb; outline-offset: 2px; transform: translateY(-1px); }
+.diagram-actions .danger-link, .project-danger-zone button { background: #fff4f4; border-color: #f0c3c3; }
+.diagram-actions .danger-link:hover, .project-danger-zone button:hover, .project-danger-zone button:focus-visible { background: #ffe8e8; border-color: #e3a0a0; outline: 2px solid #f5cece; outline-offset: 2px; }
+.members-list > .member-row .member-actions > button { background: #fff4f4; border: 1px solid #f0c3c3; border-radius: .4rem; padding: .3rem .45rem; }
+.members-list > .member-row .member-actions > button:hover, .members-list > .member-row .member-actions > button:focus-visible { background: #ffe8e8; outline: 2px solid #f5cece; outline-offset: 2px; }
+.diagram-actions .icon-danger { align-items: center; display: inline-flex; justify-content: center; min-height: 2.2rem; min-width: 2.2rem; padding: .42rem; }
+.diagram-actions .icon-danger svg { fill: currentColor; height: 1.08rem; width: 1.08rem; }.diagram-actions .icon-edit { align-items: center; display: inline-flex; justify-content: center; min-height: 2.2rem; min-width: 2.2rem; padding: .42rem; }
+.diagram-actions .icon-edit svg { fill: currentColor; height: 1.02rem; width: 1.02rem; }

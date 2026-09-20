@@ -49,7 +49,7 @@ describe('ProjectListPage', () => {
     const fixture = TestBed.createComponent(ProjectListPage);
     fixture.detectChanges();
     expect(fixture.componentInstance.state()).toBe('error');
-    expect(fixture.componentInstance.errorMessage()).toContain('No pudimos cargar');
+    expect(fixture.componentInstance.errorMessage()).toContain('Ocurrió un problema al cargar');
   });
 
   it('agrega el proyecto creado y muestra éxito', () => {

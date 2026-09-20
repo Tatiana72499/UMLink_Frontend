@@ -474,6 +474,22 @@ describe('DiagramEditorPage', () => {
     ]);
   });
 
+  it('mueve una clase de inmediato cuando recibe una previsualización remota', () => {
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.classes.set([umlClass]);
+
+    component.handleCollaborationEvent({
+      diagramId,
+      type: 'CLASS_POSITION_PREVIEW',
+      payload: { elementId: umlClass.id, positionX: 420, positionY: 260 },
+      actor: { userId: 'other-user', name: 'María' },
+    });
+
+    expect(component.classes().find((item) => item.id === umlClass.id)).toMatchObject({ positionX: 420, positionY: 260 });
+  });
+
   it('resalta una clase mientras otra persona la arrastra', () => {
     const fixture = TestBed.createComponent(DiagramEditorPage);
     const component = fixture.componentInstance;

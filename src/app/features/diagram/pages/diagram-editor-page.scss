@@ -491,7 +491,8 @@
 .canvas-empty button,
 .editor-feedback button,
 .editor-feedback a,
-.create-dialog .primary-action {
+.create-dialog .primary-action,
+.class-editor .primary-action {
   background: #0767c8;
   border: 1px solid #0767c8;
   border-radius: 0.45rem;
@@ -993,3 +994,10 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
 .activity-history small { color: #7891aa; display: block; font-size: 0.72rem; margin-top: 0.18rem; }
 
 .eraser-cursor { background: rgba(240, 248, 255, .25); border: 2px solid #0759b8; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 255, 255, .88); height: 1.6rem; pointer-events: none; position: absolute; transform: translate(-50%, -50%); transition: left 45ms linear, top 45ms linear; width: 1.6rem; z-index: 5; }
+
+.secondary-action { background: #fff; border: 1px solid #c8d9ea; border-radius: .45rem; color: #295273; cursor: pointer; font: inherit; font-weight: 700; padding: .55rem .8rem; }
+.secondary-action:hover, .secondary-action:focus-visible { background: #eef6ff; outline: 2px solid #c7e3fb; outline-offset: 2px; }
+
+.generation-panel { display: block; }
+.generation-panel app-ui-button { display: block; margin-top: .45rem; width: 100%; }
+@media (max-width: 48rem) { .generation-panel { display: none; } }

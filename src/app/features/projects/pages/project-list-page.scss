@@ -289,3 +289,15 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Entrada de la vista de proyectos y de cada tarjeta. */
+.projects-hero { animation: projects-reveal .48s cubic-bezier(.2,.75,.25,1) both; }
+.project-grid, .feedback-card { animation: projects-reveal .52s .08s cubic-bezier(.2,.75,.25,1) both; }
+.project-card { animation: project-card-reveal .48s cubic-bezier(.2,.75,.25,1) both; }
+.project-card:nth-child(2) { animation-delay: .06s; }
+.project-card:nth-child(3) { animation-delay: .12s; }
+.project-card:nth-child(n + 4) { animation-delay: .16s; }
+.project-card footer { justify-content: flex-end; }
+@keyframes projects-reveal { from { opacity: 0; transform: translateY(.85rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes project-card-reveal { from { opacity: 0; transform: translateY(.75rem) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .projects-hero, .project-grid, .feedback-card, .project-card { animation: none; } }

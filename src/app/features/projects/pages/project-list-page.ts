@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectApiService } from '../data-access/project-api.service';
@@ -14,9 +14,10 @@ type ProjectListState = 'loading' | 'empty' | 'ready' | 'error';
   templateUrl: './project-list-page.html',
   styleUrl: './project-list-page.scss',
 })
-export class ProjectListPage {
+export class ProjectListPage implements OnDestroy {
   private readonly api = inject(ProjectApiService);
   private readonly formBuilder = inject(FormBuilder);
+  private successMessageTimeout: ReturnType<typeof setTimeout> | null = null;
 
   readonly state = signal<ProjectListState>('loading');
   readonly projects = signal<Project[]>([]);
@@ -34,6 +35,8 @@ export class ProjectListPage {
   constructor() {
     this.loadProjects();
   }
+
+  ngOnDestroy(): void { this.dismissSuccess(); }
 
   loadProjects(): void {
     this.state.set('loading');
@@ -68,12 +71,24 @@ export class ProjectListPage {
     this.errorMessage.set('Ocurrió un problema al cargar tus proyectos. Puedes reintentar o volver al inicio.');
   }
   openCreateDialog(): void {
-    this.successMessage.set('');
+    this.dismissSuccess();
     this.isCreateDialogOpen.set(true);
   }
   closeCreateDialog(): void {
     this.isCreateDialogOpen.set(false);
     this.createForm.reset();
+  }
+
+  private showSuccess(message: string): void {
+    this.dismissSuccess();
+    this.successMessage.set(message);
+    this.successMessageTimeout = setTimeout(() => this.dismissSuccess(), 6_000);
+  }
+
+  private dismissSuccess(): void {
+    if (this.successMessageTimeout) clearTimeout(this.successMessageTimeout);
+    this.successMessageTimeout = null;
+    this.successMessage.set('');
   }
 
   createProject(): void {
@@ -87,7 +102,7 @@ export class ProjectListPage {
       next: (project) => {
         this.projects.update((projects) => [project, ...projects]);
         this.state.set('ready');
-        this.successMessage.set(`El proyecto “${project.name}” fue creado correctamente.`);
+        this.showSuccess(`El proyecto “${project.name}” fue creado correctamente.`);
         this.isSubmitting.set(false);
         this.closeCreateDialog();
       },

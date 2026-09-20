@@ -52,8 +52,7 @@
             <p class="description">{{ project.description || 'Sin descripción todavía.' }}</p>
           </div>
           <footer>
-            <span>Proyecto UML</span
-            ><a
+            <a
               [routerLink]="['/projects', project.id]"
               [attr.aria-label]="'Abrir proyecto ' + project.name"
               >Abrir editor <span aria-hidden="true">→</span></a

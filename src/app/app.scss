@@ -112,3 +112,19 @@ nav a.active {
     display: none;
   }
 }
+
+/* El nombre se mantiene centrado aunque los controles laterales tengan distinto ancho. */
+.app-header { position: relative; }
+.user-name {
+  left: 50%;
+  max-width: min(40vw, 24rem);
+  overflow: hidden;
+  position: absolute;
+  text-align: center;
+  text-overflow: ellipsis;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+@media (max-width: 38rem) {
+  .user-name { display: none; }
+}

@@ -178,8 +178,10 @@ export class DiagramEditorPage implements OnDestroy {
   private draggedAlignmentPointIndex: number | null = null;
   private readonly deletingDrawingIds = new Set<string>();
   private lastDrawingPreviewAt = 0;
+  private lastClassPositionPreviewAt = 0;
   private readonly remoteInteractionTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly activityTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  private successMessageTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.loadDiagram();
@@ -189,6 +191,7 @@ export class DiagramEditorPage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.dismissSuccess();
     this.remoteInteractionTimeouts.forEach((timeout) => clearTimeout(timeout));
     this.activityTimeouts.forEach((timeout) => clearTimeout(timeout));
     this.collaboration.disconnect();
@@ -277,7 +280,7 @@ export class DiagramEditorPage implements OnDestroy {
           return;
         }
         this.closeAssistantDialog();
-        this.successMessage.set(response.summary);
+        this.showSuccess(response.summary);
         this.loadDiagram();
       },
       error: (error: unknown) => {
@@ -295,7 +298,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (file) => {
         this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}.${format === 'XML' ? 'xml' : format === 'EA_SCRIPT' ? 'js' : format === 'PLANT_UML' ? 'puml' : 'xmi'}`);
         this.closeExportDialog();
-        this.successMessage.set(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format === 'PLANT_UML' ? 'PlantUML' : format} fue descargado.`);
+        this.showSuccess(`El archivo ${format === 'EA_XMI' ? 'para Enterprise Architect 15' : format === 'EA_SCRIPT' ? 'de script para Enterprise Architect 15' : format === 'PLANT_UML' ? 'PlantUML' : format} fue descargado.`);
         this.isSubmitting.set(false);
       },
       error: () => {
@@ -313,7 +316,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (file) => {
         this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}-backend.zip`);
         this.closeExportDialog();
-        this.successMessage.set('El backend Spring Boot con migración PostgreSQL fue descargado.');
+        this.showSuccess('El backend Spring Boot con migración PostgreSQL fue descargado.');
         this.isSubmitting.set(false);
       },
       error: () => {
@@ -331,7 +334,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (file) => {
         this.triggerDownload(file, `${this.fileNameFrom(diagram.name)}-flutter.zip`);
         this.closeExportDialog();
-        this.successMessage.set('La aplicación Flutter CRUD fue descargada.');
+        this.showSuccess('La aplicación Flutter CRUD fue descargada.');
         this.isSubmitting.set(false);
       },
       error: () => {
@@ -352,7 +355,7 @@ export class DiagramEditorPage implements OnDestroy {
 
   openCreateDialog(): void {
     if (!this.ensureCanEdit()) return;
-    this.successMessage.set('');
+    this.dismissSuccess();
     this.errorMessage.set('');
     this.isCreateDialogOpen.set(true);
   }
@@ -391,7 +394,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (updatedDiagram) => {
         this.diagram.set(updatedDiagram);
         this.isEditDiagramDialogOpen.set(false);
-        this.successMessage.set('El diagrama fue actualizado correctamente.');
+        this.showSuccess('El diagrama fue actualizado correctamente.');
         this.isSubmitting.set(false);
       },
       error: (error: unknown) => {
@@ -447,7 +450,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.closeAssociationClassDialog();
     this.activateRelationTool('ASSOCIATION');
     this.isCreatingAssociationClass.set(true);
-    this.successMessage.set('Arrastra desde la primera clase hasta la segunda para crear la asociación y su clase intermedia.');
+    this.showSuccess('Arrastra desde la primera clase hasta la segunda para crear la asociación y su clase intermedia.');
   }
 
   prepareClassPlacement(): void {
@@ -460,7 +463,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.editorMode.set('place-class');
     this.placementPreview.set(null);
     this.closeCreateDialog();
-    this.successMessage.set('Haz clic en un espacio libre del lienzo para colocar la nueva clase.');
+    this.showSuccess('Haz clic en un espacio libre del lienzo para colocar la nueva clase.');
   }
 
   selectClass(umlClass: UmlClass): void {
@@ -508,7 +511,7 @@ export class DiagramEditorPage implements OnDestroy {
         const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? umlClass.fillColor, attributes: umlClass.attributes, operations: updatedClass.operations ?? umlClass.operations };
         this.classes.update((classes) => classes.map((item) => item.id === updatedClass.id ? classWithAttributes : item));
         this.selectClass(classWithAttributes);
-        this.successMessage.set('La clase fue actualizada.');
+        this.showSuccess('La clase fue actualizada.');
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos actualizar la clase.'); this.isSubmitting.set(false); },
@@ -539,7 +542,7 @@ export class DiagramEditorPage implements OnDestroy {
               }
             : umlClass,
         ));
-        this.successMessage.set(`El atributo “${createdAttribute.name}” fue agregado.`);
+        this.showSuccess(`El atributo “${createdAttribute.name}” fue agregado.`);
         this.isSubmitting.set(false);
         this.attributeLineForm.reset({ name: '', dataType: 'STRING', visibility: 'PRIVATE', primaryKey: false });
       },
@@ -628,7 +631,7 @@ export class DiagramEditorPage implements OnDestroy {
             : [...item.operations, operation] }
           : item));
         this.closeOperationEditor();
-        this.successMessage.set(operationId ? 'La operación fue actualizada.' : `La operación “${operation.name}” fue agregada.`);
+        this.showSuccess(operationId ? 'La operación fue actualizada.' : `La operación “${operation.name}” fue agregada.`);
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos guardar la operación. Revisa sus datos e inténtalo nuevamente.'); this.isSubmitting.set(false); },
@@ -663,7 +666,7 @@ export class DiagramEditorPage implements OnDestroy {
             }
           : item));
         this.editingAttributeId.set(null);
-        this.successMessage.set('El atributo fue actualizado.');
+        this.showSuccess('El atributo fue actualizado.');
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos actualizar el atributo.'); this.isSubmitting.set(false); },
@@ -798,6 +801,7 @@ export class DiagramEditorPage implements OnDestroy {
   startDrag(event: PointerEvent, umlClass: UmlClass, canvas: HTMLElement): void {
     this.selectClass(umlClass);
     this.draggedClassId = umlClass.id;
+    this.lastClassPositionPreviewAt = 0;
     const point = this.pointFromEvent(event, canvas);
     this.dragOffsetX = point.x - umlClass.positionX;
     this.dragOffsetY = point.y - umlClass.positionY;
@@ -815,9 +819,20 @@ export class DiagramEditorPage implements OnDestroy {
     const point = this.pointFromEvent(event, canvas);
     const positionX = Math.max(0, point.x - this.dragOffsetX);
     const positionY = Math.max(0, point.y - this.dragOffsetY);
+    const draggedClassId = this.draggedClassId;
     this.classes.update((classes) => classes.map((umlClass) =>
-      umlClass.id === this.draggedClassId ? { ...umlClass, positionX, positionY } : umlClass,
+      umlClass.id === draggedClassId ? { ...umlClass, positionX, positionY } : umlClass,
     ));
+    this.publishClassPositionPreview(draggedClassId, positionX, positionY);
+  }
+
+  private publishClassPositionPreview(classId: string, positionX: number, positionY: number, force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastClassPositionPreviewAt < 33) return;
+    this.lastClassPositionPreviewAt = now;
+    this.collaboration.publishEphemeral('CLASS_POSITION_PREVIEW', {
+      elementId: classId, positionX: Math.round(positionX), positionY: Math.round(positionY),
+    });
   }
 
   cancelEditorAction(): void {
@@ -835,6 +850,7 @@ export class DiagramEditorPage implements OnDestroy {
     const draggedClass = this.classes().find((umlClass) => umlClass.id === this.draggedClassId);
     this.draggedClassId = null;
     if (draggedClass) {
+      this.publishClassPositionPreview(draggedClass.id, draggedClass.positionX, draggedClass.positionY, true);
       this.collaboration.publishEphemeral('ELEMENT_INTERACTION', {
         elementId: draggedClass.id, elementType: 'CLASS', state: 'IDLE',
       });
@@ -878,7 +894,7 @@ export class DiagramEditorPage implements OnDestroy {
     }
     this.cancelEditorAction();
     this.editorMode.set('draw');
-    this.successMessage.set('Lápiz activo: vuelve a presionar el mismo botón para salir.');
+    this.showSuccess('Lápiz activo: vuelve a presionar el mismo botón para salir.');
   }
 
 
@@ -890,7 +906,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.diagramApi.clearDrawings(this.diagramId).subscribe({
       next: () => {
         this.freehandPaths.set([]);
-        this.successMessage.set('Los trazos compartidos fueron eliminados.');
+        this.showSuccess('Los trazos compartidos fueron eliminados.');
       },
       error: () => this.errorMessage.set('No pudimos eliminar los trazos compartidos.'),
     });
@@ -905,7 +921,7 @@ export class DiagramEditorPage implements OnDestroy {
     }
     this.cancelEditorAction();
     this.editorMode.set('erase');
-    this.successMessage.set('Borrador activo: arrástralo sobre un trazo para eliminarlo.');
+    this.showSuccess('Borrador activo: arrástralo sobre un trazo para eliminarlo.');
   }
 
   zoomIn(): void { this.zoom.update((value) => Math.min(1.5, Number((value + 0.1).toFixed(1)))); }
@@ -929,7 +945,7 @@ export class DiagramEditorPage implements OnDestroy {
         const classWithAttributes = { ...updatedClass, fillColor: updatedClass.fillColor ?? fillColor, attributes: umlClass.attributes, operations: updatedClass.operations ?? umlClass.operations };
         this.classes.update((classes) => classes.map((item) => item.id === updatedClass.id ? classWithAttributes : item));
         this.selectClass(classWithAttributes);
-        this.successMessage.set('El color de la clase fue actualizado.');
+        this.showSuccess('El color de la clase fue actualizado.');
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos actualizar el color de la clase.'); this.isSubmitting.set(false); },
@@ -965,7 +981,7 @@ export class DiagramEditorPage implements OnDestroy {
         const relationWithLabel = { ...updatedRelation, label: (updatedRelation.label ?? label) || null };
         this.relations.update((relations) => relations.map((item) => item.id === updatedRelation.id ? relationWithLabel : item));
         this.editingRelationLabelId.set(null);
-        this.successMessage.set('La palabra de enlace fue actualizada.');
+        this.showSuccess('La palabra de enlace fue actualizada.');
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos actualizar la palabra de enlace.'); this.isSubmitting.set(false); },
@@ -997,7 +1013,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (updatedRelation) => {
         this.relations.update((relations) => relations.map((item) => item.id === updatedRelation.id ? updatedRelation : item));
         this.editingCanvasCardinality.set(null);
-        this.successMessage.set('La cardinalidad fue actualizada.');
+        this.showSuccess('La cardinalidad fue actualizada.');
         this.isSubmitting.set(false);
       },
       error: () => {
@@ -1013,7 +1029,17 @@ export class DiagramEditorPage implements OnDestroy {
     })[fillColor ?? '#FFFFFF'] ?? 'white';
   }
 
-  dismissSuccess(): void { this.successMessage.set(''); }
+  private showSuccess(message: string): void {
+    this.dismissSuccess();
+    this.successMessage.set(message);
+    this.successMessageTimeout = setTimeout(() => this.dismissSuccess(), 6_000);
+  }
+
+  dismissSuccess(): void {
+    if (this.successMessageTimeout) clearTimeout(this.successMessageTimeout);
+    this.successMessageTimeout = null;
+    this.successMessage.set('');
+  }
 
   dismissError(): void { this.errorMessage.set(''); }
 
@@ -1046,10 +1072,27 @@ export class DiagramEditorPage implements OnDestroy {
       this.updateRemoteClassInteraction(actor.userId, actor.name, event.payload);
       return;
     }
+    if (event.type === 'CLASS_POSITION_PREVIEW') {
+      this.applyRemoteClassPosition(event.payload);
+      return;
+    }
     if (event.type !== 'DIAGRAM_CHANGED') return;
     this.clearRemoteDrawingPreview(actor.userId);
     this.loadDiagram();
     this.addCollaborationActivity(actor.name, typeof event.payload === 'string' ? event.payload : 'actualizó el diagrama');
+  }
+
+  private applyRemoteClassPosition(payload: unknown): void {
+    if (typeof payload !== 'object' || payload === null) return;
+    const preview = payload as Record<string, unknown>;
+    const classId = preview['elementId'];
+    const positionX = preview['positionX'];
+    const positionY = preview['positionY'];
+    if (typeof classId !== 'string' || typeof positionX !== 'number' || typeof positionY !== 'number'
+      || !Number.isFinite(positionX) || !Number.isFinite(positionY) || positionX < 0 || positionY < 0) return;
+    this.classes.update((classes) => classes.map((umlClass) =>
+      umlClass.id === classId ? { ...umlClass, positionX, positionY } : umlClass,
+    ));
   }
 
   remoteClassColor(classId: string): string | null {
@@ -1146,7 +1189,7 @@ export class DiagramEditorPage implements OnDestroy {
     this.isCreatingAssociationClass.set(false);
     this.relationSourceId.set(null);
     this.relationPointer.set(null);
-    this.successMessage.set('Arrastra desde la clase de origen hasta la clase de destino.');
+    this.showSuccess('Arrastra desde la clase de origen hasta la clase de destino.');
   }
 
   relationUsesCardinality(): boolean {
@@ -1227,7 +1270,7 @@ export class DiagramEditorPage implements OnDestroy {
       next: (updatedRelation) => {
         this.relations.update((relations) => relations.map((item) => item.id === updatedRelation.id ? updatedRelation : item));
         this.selectRelation(updatedRelation);
-        this.successMessage.set('La relación fue actualizada.');
+        this.showSuccess('La relación fue actualizada.');
         this.isSubmitting.set(false);
       },
       error: () => { this.errorMessage.set('No pudimos actualizar la relación.'); this.isSubmitting.set(false); },
@@ -1263,7 +1306,7 @@ export class DiagramEditorPage implements OnDestroy {
       }
       this.state.set(this.classes().length === 0 ? 'empty' : 'ready');
       this.deleteTarget.set(null);
-      this.successMessage.set(`${target.label} fue eliminado.`);
+      this.showSuccess(`${target.label} fue eliminado.`);
       this.isSubmitting.set(false);
     };
     const onError = (): void => { this.errorMessage.set(`No pudimos eliminar ${target.label.toLowerCase()}.`); this.isSubmitting.set(false); };
@@ -1297,7 +1340,7 @@ export class DiagramEditorPage implements OnDestroy {
         this.classes.update((classes) => [...classes, umlClass]);
         this.state.set('ready');
         this.selectedClassId.set(umlClass.id);
-        this.successMessage.set(`La clase “${umlClass.name}” fue creada correctamente.`);
+        this.showSuccess(`La clase “${umlClass.name}” fue creada correctamente.`);
         this.isSubmitting.set(false);
         this.cancelEditorAction();
       },
@@ -1352,7 +1395,7 @@ export class DiagramEditorPage implements OnDestroy {
           this.relations.update((relations) => [...relations, response.relation]);
           this.state.set('ready');
           this.selectClass(response.umlClass);
-          this.successMessage.set(`La clase intermedia “${response.umlClass.name}” fue creada correctamente.`);
+          this.showSuccess(`La clase intermedia “${response.umlClass.name}” fue creada correctamente.`);
           this.isSubmitting.set(false);
           this.cancelEditorAction();
         },
@@ -1388,7 +1431,7 @@ export class DiagramEditorPage implements OnDestroy {
     }).subscribe({
       next: (relation) => {
         this.relations.update((relations) => [...relations, relation]);
-        this.successMessage.set(`${this.relationLabel(relation.type)} creada correctamente.`);
+        this.showSuccess(`${this.relationLabel(relation.type)} creada correctamente.`);
         this.isSubmitting.set(false);
         this.cancelEditorAction();
       },
@@ -1481,7 +1524,7 @@ export class DiagramEditorPage implements OnDestroy {
   setDrawingColor(color: string): void {
     this.drawingColor.set(color);
     if (this.editorMode() !== 'draw') this.toggleDrawingMode();
-    this.successMessage.set('Color del lápiz actualizado.');
+    this.showSuccess('Color del lápiz actualizado.');
   }
 
   private publishDrawingPreview(svgPath: string, force = false): void {

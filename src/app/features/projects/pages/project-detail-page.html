@@ -58,8 +58,8 @@
           <div class="diagram-actions">
             <a [routerLink]="['/projects', diagram.projectId, 'diagrams', diagram.id]">Abrir editor <span aria-hidden="true">→</span></a>
             @if (canEditDiagrams()) {
-              <button type="button" (click)="openEditDiagramDialog(diagram)">Editar</button>
-              <button class="danger-link" type="button" (click)="requestDiagramDeletion(diagram)">Eliminar</button>
+              <button class="edit-link icon-edit" type="button" (click)="openEditDiagramDialog(diagram)" aria-label="Editar diagrama {{ diagram.name }}" title="Editar diagrama"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" /></svg></button>
+              <button class="danger-link icon-danger" type="button" (click)="requestDiagramDeletion(diagram)" aria-label="Eliminar diagrama {{ diagram.name }}" title="Eliminar diagrama"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12ZM8 9h8v10H8V9Zm7.5-5-1-1h-5l-1 1H5v2h14V4h-3.5Z" /></svg></button>
             }
           </div>
         </article>
