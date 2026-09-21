@@ -9,6 +9,7 @@ POST     /auth/register
 POST     /auth/login
 GET/POST /projects
 GET      /projects/{id}
+GET      /projects/{id}/share-link
 PUT      /projects/{id}
 DELETE   /projects/{id}?version={version}
 GET      /projects/{id}/members
@@ -43,6 +44,10 @@ POST     /diagrams/{diagramId}/association-classes
 PUT      /relations/{id}
 PUT      /relations/{id}/cardinality
 DELETE   /relations/{id}
+
+GET      /shared/projects/{shareToken}
+GET      /shared/projects/{shareToken}/diagrams
+GET      /shared/projects/{shareToken}/diagrams/{diagramId}
 ```
 
 ## Autenticación
@@ -51,6 +56,7 @@ DELETE   /relations/{id}
 - Inicio de sesión: `email`, `password` (entre 6 y 8 caracteres) → `{ token, userId, name, email }`.
 - El interceptor agrega `Authorization: Bearer <token>` a las llamadas de API.
 - Las rutas de proyectos y diagramas requieren sesión. El propietario se asigna en el backend desde el JWT; `CreateProjectRequest` solo contiene `name` y `description`.
+- La excepción son los `GET /shared/projects/{shareToken}`: se consumen sin JWT y solo habilitan una vista independiente de lectura. No se conecta al WebSocket ni muestra controles de mutación.
 - Las respuestas de proyecto y diagrama incluyen `version`. Para actualizar, el frontend envía la versión recibida; para eliminar, la envía como parámetro `version`. Si recibe `409 VERSION_CONFLICT`, debe recargar el recurso antes de permitir otro intento.
 - Las relaciones de asociación, agregación y composición incluyen cardinalidad de origen y destino. Las únicas opciones son `1..1`, `0..1`, `1..*` y `0..*`. Generalización representa herencia; realización y dependencia no usan cardinalidad.
 - Una relación puede conectar una clase consigo misma para modelar una relación recursiva. La clase intermedia se mantiene exclusivamente para asociaciones entre dos clases diferentes; el backend fija sus dos cardinalidades en `1..*` porque representa una relación muchos-a-muchos.
@@ -76,6 +82,7 @@ El asistente textual recibe `{ command, confirmed }` y devuelve `{ action, summa
 El dictado de comandos se resuelve localmente en el navegador con `SpeechRecognition` o `webkitSpeechRecognition`, cuando el navegador lo ofrece. No agrega una ruta al backend: la transcripción se muestra a la persona usuaria para revisión y luego sigue exactamente el mismo contrato textual. Cuando la API no está disponible o no se concede permiso de micrófono, el campo de texto continúa siendo la alternativa obligatoria.
 
 `POST /projects/{id}/members` recibe `{ email, role }`, donde `role` es `EDITOR` o `VIEWER`, y requiere una cuenta ya registrada distinta de la propietaria del proyecto. La respuesta contiene `id`, `userId`, `name`, `email` y `role`. Solo `OWNER` administra miembros; `EDITOR` modifica diagramas y `VIEWER` solo los consulta. El enlace del proyecto sirve para navegar, nunca para conceder acceso.
+`GET /projects/{id}/share-link` es exclusivo del `OWNER` y devuelve un token UUID opaco. La ruta pública `/shared/projects/{shareToken}` permite que una persona sin perfil consulte el proyecto y sus diagramas, sin crear membresía. El enlace no otorga permisos de edición: para modificar, debe iniciar sesión o registrarse y recibir el rol `EDITOR` del `OWNER`. Como es una credencial de portador, nunca se debe derivar del ID de proyecto ni exponerlo fuera del enlace compartido.
 
 ## Colaboración WebSocket
 

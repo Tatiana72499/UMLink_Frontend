@@ -98,6 +98,7 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Indicador de conexión y reconexión.
 - [x] Presencia de participantes, actualizaciones de cambios y resolución explícita de conflictos.
 - [x] Compartir por correo o enlace de navegación, administrar miembros y aplicar roles `OWNER`, `EDITOR` y `VIEWER`.
+- [x] Vista pública de solo lectura por enlace opaco, con llamada a iniciar sesión o crear cuenta antes de cualquier edición.
 - [x] Previsualizar trazos remotos, señalar clases tomadas por otra persona y presentar actividad remota contextual dentro del lienzo.
 - Regla de experiencia: nunca ocultar un cambio remoto; se informa quién lo realizó y qué elemento afectó.
 

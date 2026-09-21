@@ -158,7 +158,7 @@
   @if (isShareDialogOpen()) {
     <app-ui-dialog class="share-dialog" [open]="isShareDialogOpen()" eyebrow="COLABORACIÓN" title="Compartir proyecto" titleId="share-project-title" (closed)="closeShareDialog()">
       <div class="share-intro"><span aria-hidden="true">↗</span><p>Invita a personas de tu equipo y define qué pueden hacer en este proyecto.</p></div>
-      <section class="share-link" aria-label="Enlace del proyecto"><div><strong>Enlace del proyecto</strong><small>Abre el proyecto, pero no concede acceso por sí solo.</small></div><app-ui-button variant="secondary" (pressed)="copyProjectLink()">Copiar enlace</app-ui-button></section>
+      <section class="share-link" aria-label="Enlace del proyecto"><div><strong>Enlace público de solo lectura</strong><small>Cualquiera que lo reciba podrá consultar el modelo, sin editarlo ni crear una cuenta.</small></div><app-ui-button variant="secondary" (pressed)="copyProjectLink()">Copiar enlace</app-ui-button></section>
       <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="inviteMember()">
         <label class="invite-email">Correo electrónico<input formControlName="email" type="email" autocomplete="email" placeholder="persona@correo.com" /></label>
         <fieldset class="permission-picker"><legend>Permiso</legend><div><button type="button" [class.selected]="inviteForm.controls.role.value === 'EDITOR'" (click)="setInviteRole('EDITOR')"><strong>Editor</strong><small>Puede modificar</small></button><button type="button" [class.selected]="inviteForm.controls.role.value === 'VIEWER'" (click)="setInviteRole('VIEWER')"><strong>Viewer</strong><small>Solo lectura</small></button></div></fieldset>

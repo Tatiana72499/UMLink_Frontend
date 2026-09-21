@@ -20,6 +20,7 @@ export class AuthPage {
   private readonly api = inject(AuthApiService);
   private readonly session = inject(AuthSessionService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly returnUrl = this.sharedReturnUrl(this.route.snapshot.queryParamMap?.get('returnUrl') ?? null);
 
   readonly mode = (this.route.snapshot.data['mode'] as AuthMode | undefined) ?? 'login';
   readonly isRegistering = computed(() => this.mode === 'register');
@@ -56,7 +57,7 @@ export class AuthPage {
     request.subscribe({
       next: (response) => {
         this.session.save(response);
-        void this.router.navigate(['/projects']);
+        void this.router.navigateByUrl(this.returnUrl ?? '/projects');
       },
       error: (error: HttpErrorResponse) => {
         this.showRequestError(error);
@@ -106,6 +107,10 @@ export class AuthPage {
 
   clearEmailServerError(): void {
     this.emailServerError.set('');
+  }
+
+  private sharedReturnUrl(value: string | null): string | null {
+    return value?.startsWith('/projects/') && !value.startsWith('//') ? value : null;
   }
 
   private showRequestError(error: HttpErrorResponse): void {

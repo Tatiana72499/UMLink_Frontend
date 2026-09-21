@@ -38,6 +38,14 @@ export class DiagramApiService {
     return this.http.get<Diagram[]>(`${this.apiUrl}/projects/${projectId}/diagrams`);
   }
 
+
+  findSharedByToken(shareToken: string): Observable<Diagram[]> {
+    return this.http.get<Diagram[]>(`${this.apiUrl}/shared/projects/${shareToken}/diagrams`);
+  }
+
+  findSharedDetails(shareToken: string, diagramId: string): Observable<DiagramDetails> {
+    return this.http.get<DiagramDetails>(`${this.apiUrl}/shared/projects/${shareToken}/diagrams/${diagramId}`);
+  }
   create(projectId: string, request: CreateDiagramRequest): Observable<Diagram> {
     return this.http.post<Diagram>(`${this.apiUrl}/projects/${projectId}/diagrams`, request);
   }

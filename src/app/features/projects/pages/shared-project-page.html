@@ -1,0 +1,180 @@
+@if (!isAuthenticated()) {
+  <header class="shared-header">
+    <a class="brand" routerLink="/" aria-label="UMLink, inicio">
+      <span class="brand-mark" aria-hidden="true">U</span>
+      <span>UMLink</span>
+    </a>
+    <nav aria-label="Acceso a cuenta">
+      <a [routerLink]="['/auth/login']" [queryParams]="{ returnUrl: protectedProjectUrl() }"
+        >Iniciar sesión</a
+      >
+      <a
+        class="register-link"
+        [routerLink]="['/auth/register']"
+        [queryParams]="{ returnUrl: protectedProjectUrl() }"
+        >Crear cuenta</a
+      >
+    </nav>
+  </header>
+}
+
+<main class="shared-project-page">
+  @switch (state()) {
+    @case ('loading') {
+      <section class="feedback-card" aria-live="polite">
+        <span class="feedback-icon" aria-hidden="true">◌</span>
+        <h1>Abriendo proyecto compartido</h1>
+        <p>Estamos cargando el modelo en modo solo lectura.</p>
+      </section>
+    }
+    @case ('error') {
+      <section class="feedback-card error-card" role="alert">
+        <span class="feedback-icon" aria-hidden="true">!</span>
+        <h1>No fue posible abrir el proyecto</h1>
+        <p>{{ errorMessage() }}</p>
+        <a routerLink="/">Ir al inicio</a>
+      </section>
+    }
+    @case ('empty') {
+      @if (project(); as currentProject) {
+        <section class="shared-intro">
+          <p class="eyebrow">VISTA COMPARTIDA</p>
+          <h1>{{ currentProject.name }}</h1>
+          <p>{{ currentProject.description || 'Este proyecto aún no tiene descripción.' }}</p>
+          <span>Creado por {{ currentProject.ownerName }}</span>
+        </section>
+      }
+      <section class="feedback-card">
+        <span class="feedback-icon" aria-hidden="true">◇</span>
+        <h2>El proyecto todavía no tiene diagramas</h2>
+        <p>
+          El enlace es de solo lectura. Inicia sesión y solicita permiso de edición si deseas
+          agregar uno.
+        </p>
+      </section>
+    }
+    @case ('ready') {
+      @if (project(); as currentProject) {
+        <section class="shared-intro">
+          <p class="eyebrow">VISTA COMPARTIDA · SOLO LECTURA</p>
+          <h1>{{ currentProject.name }}</h1>
+          <p>{{ currentProject.description || 'Este proyecto no tiene una descripción.' }}</p>
+          <span>Creado por {{ currentProject.ownerName }}</span>
+        </section>
+
+        <section class="read-only-banner" aria-label="Permiso de la vista compartida">
+          <span aria-hidden="true">◉</span>
+          <div>
+            <strong>Estás viendo una copia compartida</strong>
+            <p>
+              Este enlace permite consultar el modelo sin una cuenta. Para modificarlo, inicia
+              sesión o crea una cuenta y pide a la persona propietaria que te asigne el rol de
+              Editor.
+            </p>
+          </div>
+          @if (isAuthenticated()) {
+            <a class="primary-link" [routerLink]="protectedProjectUrl()">Abrir en mi espacio</a>
+          } @else {
+            <div class="access-actions">
+              <a [routerLink]="['/auth/login']" [queryParams]="{ returnUrl: protectedProjectUrl() }"
+                >Iniciar sesión</a
+              >
+              <a
+                class="primary-link"
+                [routerLink]="['/auth/register']"
+                [queryParams]="{ returnUrl: protectedProjectUrl() }"
+                >Crear cuenta</a
+              >
+            </div>
+          }
+        </section>
+
+        <section class="diagram-selector" aria-label="Diagramas compartidos">
+          <h2>Diagramas</h2>
+          <div>
+            @for (diagram of diagrams(); track diagram.id) {
+              <button
+                type="button"
+                [class.selected]="selectedDiagram()?.id === diagram.id"
+                (click)="selectDiagram(diagram)"
+              >
+                {{ diagram.name }}
+              </button>
+            }
+          </div>
+        </section>
+
+        @if (isDiagramLoading()) {
+          <section class="feedback-card compact" aria-live="polite">
+            <p>Cargando diagrama…</p>
+          </section>
+        } @else if (details(); as diagramDetails) {
+          <section
+            class="diagram-reader"
+            [attr.aria-label]="'Diagrama ' + diagramDetails.diagram.name"
+          >
+            <header>
+              <div>
+                <p class="eyebrow">DIAGRAMA DE CLASES</p>
+                <h2>{{ diagramDetails.diagram.name }}</h2>
+              </div>
+              <span
+                >{{ diagramDetails.classes.length }} clase(s) ·
+                {{ diagramDetails.relations.length }} relación(es)</span
+              >
+            </header>
+
+            @if (diagramDetails.classes.length === 0) {
+              <p class="diagram-empty">Este diagrama no tiene clases todavía.</p>
+            } @else {
+              <section class="uml-grid" aria-label="Clases UML">
+                @for (umlClass of diagramDetails.classes; track umlClass.id) {
+                  <article
+                    class="uml-card"
+                    [style.backgroundColor]="umlClass.fillColor || '#ffffff'"
+                  >
+                    <p class="stereotype">&lt;&lt;class&gt;&gt;</p>
+                    <h3>{{ umlClass.name }}</h3>
+                    <section class="uml-members" aria-label="Atributos">
+                      @if (umlClass.attributes.length === 0) {
+                        <p>Sin atributos</p>
+                      } @else {
+                        @for (attribute of umlClass.attributes; track attribute.id) {
+                          <p [class.primary-key]="attribute.primaryKey">
+                            {{ formatAttribute(attribute) }}
+                          </p>
+                        }
+                      }
+                    </section>
+                    <section class="uml-members" aria-label="Operaciones">
+                      @if (umlClass.operations.length === 0) {
+                        <p>Sin operaciones</p>
+                      } @else {
+                        @for (operation of umlClass.operations; track operation.id) {
+                          <p>{{ formatOperation(operation) }}</p>
+                        }
+                      }
+                    </section>
+                  </article>
+                }
+              </section>
+            }
+
+            <section class="relations-panel" aria-label="Relaciones UML">
+              <h3>Relaciones</h3>
+              @if (diagramDetails.relations.length === 0) {
+                <p>No hay relaciones definidas.</p>
+              } @else {
+                <ul>
+                  @for (relation of diagramDetails.relations; track relation.id) {
+                    <li>{{ relationText(relation) }}</li>
+                  }
+                </ul>
+              }
+            </section>
+          </section>
+        }
+      }
+    }
+  }
+</main>

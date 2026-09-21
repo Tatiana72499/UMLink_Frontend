@@ -143,18 +143,23 @@ export class ProjectDetailPage implements OnDestroy {
     if (!this.projectId) return;
     this.projectApi.updateMember(this.projectId, member.id, role).subscribe({ next: (updated) => this.members.update((items) => items.map((item) => item.id === updated.id ? updated : item)), error: () => this.errorMessage.set('No pudimos actualizar el rol.') });
   }
-  async copyProjectLink(): Promise<void> {
+  copyProjectLink(): void {
     if (!this.projectId || !navigator.clipboard) {
       this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/projects/${this.projectId}`);
-      this.showSuccess('Enlace del proyecto copiado. Recuerda que el acceso requiere invitación.');
-    } catch {
-      this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
-    }
+    this.projectApi.getShareLink(this.projectId).subscribe({
+      next: async ({ shareToken }) => {
+        try {
+          await navigator.clipboard.writeText(`${window.location.origin}/shared/projects/${shareToken}`);
+          this.showSuccess('Enlace público copiado. Quien lo tenga podrá consultar el proyecto sin editarlo.');
+        } catch {
+          this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
+        }
+      },
+      error: () => this.errorMessage.set('No fue posible crear el enlace compartido.'),
+    });
   }
   removeMember(member: ProjectMember): void {
     if (!this.projectId) return;
