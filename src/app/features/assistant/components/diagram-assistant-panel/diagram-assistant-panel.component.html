@@ -15,8 +15,11 @@
       @if (voiceMessage()) { <p class="voice-message" [class.error]="voiceState() === 'error' || voiceState() === 'unsupported'">{{ voiceMessage() }}</p> }
       @if (form.controls.command.touched && form.controls.command.invalid) { <p class="field-error">Escribe una instrucción de hasta 500 caracteres.</p> }
       @if (errorMessage) { <p class="assistant-error" role="alert">{{ errorMessage }}</p> }
+      @if (resultMessage) { <p class="assistant-result" role="status">{{ resultMessage }}</p> }
       @if (preview; as pending) {
-        <section class="confirmation-card" aria-live="polite"><span aria-hidden="true">!</span><div><strong>Confirma este cambio</strong><p>{{ pending.summary }}</p></div><app-ui-button (pressed)="submit(true)" [disabled]="isSubmitting">Confirmar</app-ui-button></section>
+        @if (form.controls.command.value.trim() === previewCommand) {
+          <section class="confirmation-card" aria-live="polite"><span aria-hidden="true">!</span><div><strong>Confirma este cambio</strong><p>{{ pending.summary }}</p></div><app-ui-button (pressed)="submit(true)" [disabled]="isSubmitting">Confirmar</app-ui-button></section>
+        }
       }
       <details class="assistant-suggestions">
         <summary>Ideas para empezar</summary>
@@ -25,5 +28,5 @@
     </form>
   </section>
 } @else {
-  <button type="button" class="assistant-launcher" (click)="opened.emit()" aria-label="Abrir asistente UMLink"><span aria-hidden="true">✦</span> Asistente</button>
+  <button type="button" class="assistant-launcher" [style.left.px]="launcherPosition()?.left" [style.top.px]="launcherPosition()?.top" [style.right]="launcherPosition() ? 'auto' : null" [style.bottom]="launcherPosition() ? 'auto' : null" (pointerdown)="startLauncherDrag($event)" (pointermove)="moveLauncher($event)" (pointerup)="endLauncherDrag($event)" (pointercancel)="endLauncherDrag($event)" (click)="activateLauncher()" aria-label="Abrir asistente UMLink; arrastra para mover"><span aria-hidden="true">✦</span> Asistente</button>
 }

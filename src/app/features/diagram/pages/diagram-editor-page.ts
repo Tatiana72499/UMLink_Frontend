@@ -58,6 +58,8 @@ export class DiagramEditorPage implements OnDestroy {
   readonly isExportDialogOpen = signal(false);
   readonly isAssistantDialogOpen = signal(false);
   readonly assistantPreview = signal<AssistantCommandResponse | null>(null);
+  readonly assistantPreviewCommand = signal('');
+  readonly assistantResult = signal('');
   readonly assistantError = signal('');
   readonly isSummaryVisible = signal(true);
   readonly activityHistory = signal<DiagramActivity[]>([]);
@@ -256,6 +258,8 @@ export class DiagramEditorPage implements OnDestroy {
   openAssistantDialog(): void {
     if (!this.ensureCanEdit()) return;
     this.assistantPreview.set(null);
+    this.assistantPreviewCommand.set('');
+    this.assistantResult.set('');
     this.assistantError.set('');
     this.isAssistantDialogOpen.set(true);
   }
@@ -263,6 +267,8 @@ export class DiagramEditorPage implements OnDestroy {
   closeAssistantDialog(): void {
     this.isAssistantDialogOpen.set(false);
     this.assistantPreview.set(null);
+    this.assistantPreviewCommand.set('');
+    this.assistantResult.set('');
     this.assistantError.set('');
   }
 
@@ -271,12 +277,20 @@ export class DiagramEditorPage implements OnDestroy {
     const diagram = this.diagram();
     if (!diagram) return;
     this.assistantError.set('');
+    this.assistantResult.set('');
+    if (!request.confirmed) this.assistantPreview.set(null);
     this.isSubmitting.set(true);
     this.diagramApi.executeAssistantCommand(diagram.id, request).subscribe({
       next: (response) => {
         this.isSubmitting.set(false);
         if (response.requiresConfirmation) {
           this.assistantPreview.set(response);
+          this.assistantPreviewCommand.set(request.command);
+          return;
+        }
+        if (response.action.startsWith('READ_')) {
+          this.assistantPreview.set(null);
+          this.assistantResult.set(response.summary);
           return;
         }
         this.closeAssistantDialog();

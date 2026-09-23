@@ -23,11 +23,23 @@ export interface DiagramImagePreview {
 export type AssistantCommandAction =
   | 'CREATE_CLASS'
   | 'MOVE_CLASS'
+  | 'UPDATE_CLASS'
   | 'RENAME_CLASS'
   | 'CREATE_ATTRIBUTE'
+  | 'UPDATE_ATTRIBUTE'
+  | 'DELETE_ATTRIBUTE'
+  | 'CREATE_OPERATION'
+  | 'UPDATE_OPERATION'
+  | 'DELETE_OPERATION'
   | 'CREATE_RELATION'
+  | 'UPDATE_RELATION'
   | 'DELETE_CLASS'
-  | 'DELETE_RELATION';
+  | 'DELETE_RELATION'
+  | 'READ_CLASSES'
+  | 'READ_CLASS'
+  | 'READ_ATTRIBUTES'
+  | 'READ_OPERATIONS'
+  | 'READ_RELATIONS';
 
 export interface ExecuteAssistantCommandRequest {
   command: string;

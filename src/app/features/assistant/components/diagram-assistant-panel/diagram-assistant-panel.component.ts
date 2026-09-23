@@ -19,25 +19,33 @@ export class DiagramAssistantPanelComponent implements OnChanges {
   private readonly voice = inject(VoiceCommandService);
   private readonly destroyRef = inject(DestroyRef);
   private voiceSubscription?: Subscription;
+  private launcherDrag: { pointerId: number; x: number; y: number; left: number; top: number; width: number; height: number; moved: boolean } | null = null;
+  private suppressLauncherClick = false;
 
   @Input({ required: true }) open = false;
   @Input() isSubmitting = false;
   @Input() errorMessage = '';
   @Input() preview: AssistantCommandResponse | null = null;
+  @Input() previewCommand = '';
+  @Input() resultMessage = '';
   @Output() closed = new EventEmitter<void>();
   @Output() opened = new EventEmitter<void>();
   @Output() commandRequested = new EventEmitter<ExecuteAssistantCommandRequest>();
 
   readonly voiceState = signal<VoiceState>('idle');
   readonly voiceMessage = signal('');
+  readonly launcherPosition = signal<{ left: number; top: number } | null>(null);
   readonly form = this.formBuilder.nonNullable.group({
     command: ['', [Validators.required, Validators.maxLength(500)]],
   });
   readonly suggestions = [
-    'Agrega a Usuario un atributo llamado Nombre',
-    'Crea una relación de asociación entre Usuario y Cliente, uno a uno',
-    'Cliente hereda de Persona',
-    'Quiero una clase para registrar pagos',
+    'Crear clase Pago',
+    'Mover clase Pago a 200, 300',
+    'Renombrar clase Pago a Factura',
+    'Eliminar clase Pago',
+    'Agregar a Pago un atributo llamado total de tipo Double',
+    'Crear relación entre Pago y Cliente',
+    'Listar clases',
   ];
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -54,12 +62,50 @@ export class DiagramAssistantPanelComponent implements OnChanges {
       this.form.markAllAsTouched();
       return;
     }
+    if (confirmed && (!this.preview || this.form.controls.command.value.trim() !== this.previewCommand)) return;
     this.commandRequested.emit({ command: this.form.controls.command.value.trim(), confirmed });
   }
 
   useSuggestion(value: string): void {
     this.form.controls.command.setValue(value);
     this.form.controls.command.markAsDirty();
+  }
+
+  startLauncherDrag(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    const rect = button.getBoundingClientRect();
+    this.suppressLauncherClick = false;
+    this.launcherDrag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height, moved: false };
+    button.setPointerCapture?.(event.pointerId);
+  }
+
+  moveLauncher(event: PointerEvent): void {
+    const drag = this.launcherDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    event.preventDefault();
+    this.launcherPosition.set({
+      left: Math.max(8, Math.min(window.innerWidth - drag.width - 8, drag.left + dx)),
+      top: Math.max(8, Math.min(window.innerHeight - drag.height - 8, drag.top + dy)),
+    });
+  }
+
+  endLauncherDrag(event: PointerEvent): void {
+    if (this.launcherDrag?.pointerId !== event.pointerId) return;
+    this.suppressLauncherClick = this.launcherDrag.moved;
+    this.launcherDrag = null;
+  }
+
+  activateLauncher(): void {
+    if (this.suppressLauncherClick) {
+      this.suppressLauncherClick = false;
+      return;
+    }
+    this.opened.emit();
   }
 
   startVoice(): void {

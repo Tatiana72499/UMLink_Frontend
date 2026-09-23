@@ -38,11 +38,12 @@ describe('ProjectDetailPage', () => {
   let imagePreviewResponse: Observable<DiagramImagePreview>;
   let membersResponse: Observable<ProjectMember[]>;
   let addMemberCalls: number;
-  const projectApiStub: Pick<ProjectApiService, 'findById' | 'update' | 'delete' | 'findMembers' | 'addMember'> = {
+  const projectApiStub: Pick<ProjectApiService, 'findById' | 'update' | 'delete' | 'findMembers' | 'addMember' | 'getShareLink'> = {
     findById: () => projectResponse,
     update: () => updateProjectResponse,
     delete: () => deleteProjectResponse,
     findMembers: () => membersResponse,
+    getShareLink: () => of({ shareToken: 'opaque-share-token' }),
     addMember: () => { addMemberCalls += 1; return of({ id: 'member-2', userId: 'user-2', name: 'Daniela', email: 'dani@umlink.dev', role: 'EDITOR' }); },
   };
   const diagramApiStub: Pick<DiagramApiService, 'findByProject' | 'create' | 'import' | 'previewImage' | 'update' | 'delete'> = {
@@ -161,6 +162,43 @@ describe('ProjectDetailPage', () => {
 
     expect(component.inviteError()).toContain('propietaria');
     expect(addMemberCalls).toBe(0);
+  });
+
+  it('muestra el enlace público para copiarlo manualmente si el navegador bloquea el portapapeles', () => {
+    const fixture = TestBed.createComponent(ProjectDetailPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openShareDialog();
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input[aria-label="Enlace público del proyecto"]') as HTMLInputElement;
+    expect(input.readOnly).toBe(true);
+    expect(input.value).toContain('/shared/projects/opaque-share-token');
+    expect(component.shareLink()).toBe(input.value);
+  });
+
+  it('copia con la alternativa del navegador cuando Clipboard API no está disponible', async () => {
+    const fixture = TestBed.createComponent(ProjectDetailPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.openShareDialog();
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[aria-label="Enlace público del proyecto"]') as HTMLInputElement;
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    const copy = vi.fn(() => true);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: copy });
+    try {
+      await component.copyProjectLink(input);
+      expect(copy).toHaveBeenCalledWith('copy');
+      expect(component.shareLinkCopied()).toBe(true);
+    } finally {
+      if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+      if (execCommandDescriptor) Object.defineProperty(document, 'execCommand', execCommandDescriptor);
+      else Reflect.deleteProperty(document, 'execCommand');
+    }
   });
 
   it('acepta PlantUML y agrega el diagrama importado al proyecto', () => {

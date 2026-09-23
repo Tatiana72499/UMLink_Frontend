@@ -657,17 +657,30 @@
   .tool-panel {
     border-bottom: 1px solid #dce6f4;
     border-right: 0;
-    display: flex;
-    gap: 0.4rem;
-    overflow-x: auto;
-    padding: 0.6rem;
+    display: block;
+    padding: 0.7rem;
   }
-  .tool-panel .panel-heading,
+  .tool-panel .panel-heading { display: flex; margin-bottom: 0.4rem; }
   .quick-help {
     display: none;
   }
-  .tool {
+  .tool-panel > .tool { max-width: 100%; }
+  .relation-tools {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.4rem;
+    scrollbar-width: thin;
+  }
+  .relation-tools > p { display: none; }
+  .relation-tools .tool {
     flex: 0 0 10rem;
+    scroll-snap-align: start;
+  }
+  .properties-panel {
+    border-left: 0;
+    border-top: 1px solid #dce6f4;
+    display: block;
   }
   .canvas {
     min-height: 34rem;
@@ -898,7 +911,6 @@ select:focus { border-color: #1765ba; box-shadow: 0 0 0 3px #dceeff; outline: no
 .relation-alignment-action:focus-visible { background: #eaf4ff; outline: 2px solid #a8cff4; }
 .relation-save-action:hover,
 .relation-save-action:focus-visible { background: #0759b8; outline: 2px solid #a8cff4; }
-.relation-delete-action { background: transparent; border: 0; color: #b43b3b; cursor: pointer; display: block; font-size: .9rem; margin: .55rem 0 0 auto; padding: .3rem; }
 .relation-delete-action:hover,
 .relation-delete-action:focus-visible { background: #fff0f0; border-radius: .35rem; outline: 2px solid #f2c3c3; }
 .danger-action { background: #fff0f0; border: 1px solid #f1bbbb; border-radius: .45rem; color: #a83232; cursor: pointer; font-weight: 700; padding: .55rem .8rem; }

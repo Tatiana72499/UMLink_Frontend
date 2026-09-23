@@ -158,7 +158,17 @@
   @if (isShareDialogOpen()) {
     <app-ui-dialog class="share-dialog" [open]="isShareDialogOpen()" eyebrow="COLABORACIÓN" title="Compartir proyecto" titleId="share-project-title" (closed)="closeShareDialog()">
       <div class="share-intro"><span aria-hidden="true">↗</span><p>Invita a personas de tu equipo y define qué pueden hacer en este proyecto.</p></div>
-      <section class="share-link" aria-label="Enlace del proyecto"><div><strong>Enlace público de solo lectura</strong><small>Cualquiera que lo reciba podrá consultar el modelo, sin editarlo ni crear una cuenta.</small></div><app-ui-button variant="secondary" (pressed)="copyProjectLink()">Copiar enlace</app-ui-button></section>
+      <section class="share-link" aria-label="Enlace del proyecto">
+        <div><strong>Enlace público de solo lectura</strong><small>Cualquiera que lo reciba podrá consultar el modelo, sin editarlo ni crear una cuenta.</small></div>
+        @if (shareLinkLoading()) {
+          <p>Preparando enlace…</p>
+        } @else if (shareLink()) {
+          <input #shareLinkInput aria-label="Enlace público del proyecto" [value]="shareLink()" readonly />
+          <app-ui-button variant="secondary" (pressed)="copyProjectLink(shareLinkInput)">{{ shareLinkCopied() ? '¡Copiado!' : 'Copiar enlace' }}</app-ui-button>
+        }
+        @if (shareLinkCopied()) { <p role="status">El enlace está listo para compartir.</p> }
+        @if (shareLinkError()) { <p class="field-error" role="alert">{{ shareLinkError() }}</p> }
+      </section>
       <form class="invite-form" [formGroup]="inviteForm" (ngSubmit)="inviteMember()">
         <label class="invite-email">Correo electrónico<input formControlName="email" type="email" autocomplete="email" placeholder="persona@correo.com" /></label>
         <fieldset class="permission-picker"><legend>Permiso</legend><div><button type="button" [class.selected]="inviteForm.controls.role.value === 'EDITOR'" (click)="setInviteRole('EDITOR')"><strong>Editor</strong><small>Puede modificar</small></button><button type="button" [class.selected]="inviteForm.controls.role.value === 'VIEWER'" (click)="setInviteRole('VIEWER')"><strong>Viewer</strong><small>Solo lectura</small></button></div></fieldset>

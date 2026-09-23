@@ -306,10 +306,13 @@ h1 {
 .share-intro { align-items: flex-start; color: #496b8d; display: flex; gap: 0.7rem; line-height: 1.5; margin-bottom: 1.15rem; }
 .share-intro span { align-items: center; background: #eaf3ff; border-radius: 0.55rem; color: #0767c8; display: inline-flex; font-weight: 900; height: 2rem; justify-content: center; width: 2rem; }
 .share-intro p { margin: 0; }
-.share-link { align-items: center; background: #f6faff; border: 1px solid #d9e8f7; border-radius: 0.7rem; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 1.2rem; padding: 0.85rem; }
+.share-link { align-items: center; background: #f6faff; border: 1px solid #d9e8f7; border-radius: 0.7rem; display: grid; gap: 0.65rem; grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 1.2rem; padding: 0.85rem; }
 .share-link div { display: grid; gap: 0.15rem; }
 .share-link strong { color: #234d79; font-size: 0.84rem; }
 .share-link small { color: #6987a3; font-size: 0.74rem; }
+.share-link input { background: #fff; border: 1px solid #c7def4; border-radius: 0.45rem; color: #244d78; font: inherit; font-size: 0.73rem; grid-column: 1 / -1; min-width: 0; padding: 0.55rem; width: 100%; }
+.share-link app-ui-button { grid-column: 2; grid-row: 1; }
+.share-link > p { grid-column: 1 / -1; margin: 0; }
 .invite-form { border-bottom: 1px solid #dbe7f4; display: grid; gap: 0.85rem; grid-template-columns: minmax(0, 1fr); padding-bottom: 1.25rem; }
 .invite-form label { margin: 0; min-width: 0; }
 .invite-form input { box-sizing: border-box; width: 100%; }
@@ -376,7 +379,7 @@ h1 {
     width: 100%;
   }
   .share-link, .invite-form { align-items: stretch; grid-template-columns: 1fr; }
-  .share-link { flex-direction: column; }
+  .share-link app-ui-button { grid-column: 1; grid-row: auto; }
   .diagram-grid {
     grid-template-columns: 1fr;
   }

@@ -315,6 +315,20 @@ describe('DiagramEditorPage', () => {
     component.executeAssistantCommand({ command: 'eliminar clase Usuario', confirmed: false });
 
     expect(component.assistantPreview()?.requiresConfirmation).toBe(true);
+    expect(component.assistantPreviewCommand()).toBe('eliminar clase Usuario');
+  });
+
+  it('mantiene abierta la respuesta de una consulta del asistente', () => {
+    assistantCommandResponse = of({ action: 'READ_CLASSES', summary: 'Clases: Usuario.', requiresConfirmation: false });
+    const fixture = TestBed.createComponent(DiagramEditorPage);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.openAssistantDialog();
+    component.executeAssistantCommand({ command: 'listar clases', confirmed: false });
+
+    expect(component.isAssistantDialogOpen()).toBe(true);
+    expect(component.assistantResult()).toBe('Clases: Usuario.');
   });
 
   it('actualiza una clase seleccionada', () => {

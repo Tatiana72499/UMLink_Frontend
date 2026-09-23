@@ -51,6 +51,10 @@ export class ProjectDetailPage implements OnDestroy {
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
   readonly inviteError = signal('');
+  readonly shareLink = signal('');
+  readonly shareLinkLoading = signal(false);
+  readonly shareLinkError = signal('');
+  readonly shareLinkCopied = signal(false);
   readonly createForm = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
   });
@@ -107,7 +111,26 @@ export class ProjectDetailPage implements OnDestroy {
     return this.members().some((member) => member.userId === this.currentUserId() && (member.role === 'OWNER' || member.role === 'EDITOR'));
   }
   private currentUserId(): string | null { return this.authSession.user()?.userId ?? null; }
-  openShareDialog(): void { this.errorMessage.set(''); this.inviteError.set(''); this.isShareDialogOpen.set(true); }
+  openShareDialog(): void {
+    this.errorMessage.set('');
+    this.inviteError.set('');
+    this.shareLinkError.set('');
+    this.shareLinkCopied.set(false);
+    this.isShareDialogOpen.set(true);
+    if (!this.projectId || this.shareLink() || this.shareLinkLoading()) return;
+    this.shareLinkLoading.set(true);
+    this.projectApi.getShareLink(this.projectId).subscribe({
+      next: ({ shareToken }) => {
+        const route = this.router.serializeUrl(this.router.createUrlTree(['/shared/projects', shareToken]));
+        this.shareLink.set(new URL(route, window.location.origin).toString());
+        this.shareLinkLoading.set(false);
+      },
+      error: () => {
+        this.shareLinkError.set('No pudimos obtener el enlace. Cierra y vuelve a abrir esta ventana para reintentar.');
+        this.shareLinkLoading.set(false);
+      },
+    });
+  }
   closeShareDialog(): void { this.isShareDialogOpen.set(false); this.inviteError.set(''); this.inviteForm.reset({ email: '', role: 'EDITOR' }); }
   setInviteRole(role: Exclude<ProjectRole, 'OWNER'>): void {
     this.inviteForm.controls.role.setValue(role);
@@ -143,23 +166,37 @@ export class ProjectDetailPage implements OnDestroy {
     if (!this.projectId) return;
     this.projectApi.updateMember(this.projectId, member.id, role).subscribe({ next: (updated) => this.members.update((items) => items.map((item) => item.id === updated.id ? updated : item)), error: () => this.errorMessage.set('No pudimos actualizar el rol.') });
   }
-  copyProjectLink(): void {
-    if (!this.projectId || !navigator.clipboard) {
-      this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
-      return;
+  async copyProjectLink(input: HTMLInputElement): Promise<void> {
+    if (!this.shareLink()) return;
+    this.shareLinkError.set('');
+    this.shareLinkCopied.set(false);
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(this.shareLink());
+        this.shareLinkCopied.set(true);
+        this.showSuccess('Enlace público copiado. Quien lo tenga podrá consultar el proyecto sin editarlo.');
+        return;
+      } catch {
+        this.copyLinkFromInput(input);
+        return;
+      }
     }
+    this.copyLinkFromInput(input);
+  }
 
-    this.projectApi.getShareLink(this.projectId).subscribe({
-      next: async ({ shareToken }) => {
-        try {
-          await navigator.clipboard.writeText(`${window.location.origin}/shared/projects/${shareToken}`);
-          this.showSuccess('Enlace público copiado. Quien lo tenga podrá consultar el proyecto sin editarlo.');
-        } catch {
-          this.errorMessage.set('No fue posible copiar el enlace en este navegador.');
-        }
-      },
-      error: () => this.errorMessage.set('No fue posible crear el enlace compartido.'),
-    });
+  private copyLinkFromInput(input: HTMLInputElement): void {
+    input.focus();
+    input.select();
+    try {
+      if (document.execCommand('copy')) {
+        this.shareLinkCopied.set(true);
+        this.showSuccess('Enlace público copiado. Quien lo tenga podrá consultar el proyecto sin editarlo.');
+        return;
+      }
+    } catch {
+      // El enlace sigue seleccionado para que la persona pueda copiarlo manualmente.
+    }
+    this.shareLinkError.set('El navegador bloqueó la copia automática. Copia el enlace seleccionado con Ctrl+C.');
   }
   removeMember(member: ProjectMember): void {
     if (!this.projectId) return;

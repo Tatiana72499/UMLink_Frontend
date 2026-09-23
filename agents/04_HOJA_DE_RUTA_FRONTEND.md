@@ -120,7 +120,7 @@ No incorporar una fase futura como un atajo dentro de una fase actual.
 - [x] Panel de asistencia por comandos textuales concretos, con validación del servidor y confirmación antes de eliminar; nunca generación opaca de todo el modelo.
 - [x] Flujo de confirmación antes de que el asistente cambie el diagrama.
 - [x] Comandos de voz con retroalimentación visible y alternativa de teclado, mediante la API de reconocimiento de voz disponible en el navegador.
-- [x] Ampliar la comprensión de lenguaje natural mediante OpenRouter, enviando únicamente la instrucción y los nombres de clases tras aprobación explícita; el backend siempre revalida la propuesta antes de modificar el modelo.
+- [ ] Ampliar la comprensión de lenguaje natural mediante un proveedor de IA con consentimiento explícito; por ahora el asistente usa una gramática local de comandos validados.
 - [x] Reubicar la interacción del asistente en una barra de chat inferior, minimizable y accesible desde un lanzador compacto.
 - [x] Importar archivos XML UMLink, XMI/UML y PlantUML (`.puml`) en un diagrama nuevo, validando extensión y tamaño antes de enviarlos.
 - [x] Descargar XML UMLink completo, XMI/UML genérico, XMI visual, script de Automation API compatible con Enterprise Architect 15 o código PlantUML, con el subconjunto documentado de clases, atributos, operaciones, relaciones y cardinalidades.

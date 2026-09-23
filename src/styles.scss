@@ -32,3 +32,32 @@ input:focus-visible {
   outline: 3px solid #7ab8ff;
   outline-offset: 2px;
 }
+
+/* Controles del editor que deben seguir visibles en el panel móvil. */
+.relation-delete-action {
+  align-items: center;
+  background: #fff0f0;
+  border: 1px solid #f1bbbb;
+  border-radius: .5rem;
+  color: #a83232;
+  cursor: pointer;
+  display: flex;
+  font-size: 1.4rem;
+  height: 2.75rem;
+  justify-content: center;
+  margin: .65rem 0 0 auto;
+  width: 2.75rem;
+}
+.activity-history-scroll {
+  max-height: min(60vh, 32rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: .35rem;
+  scrollbar-color: #9bbfdf #eef6ff;
+  scrollbar-width: thin;
+}
+.activity-history-scroll:focus-visible {
+  border-radius: .35rem;
+  outline: 2px solid #8dc5ff;
+  outline-offset: 2px;
+}

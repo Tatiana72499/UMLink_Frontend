@@ -538,11 +538,11 @@
       } @else if (activityHistory().length === 0) {
         <p class="activity-state">Aún no hay cambios confirmados para este diagrama.</p>
       } @else {
-        <ol class="activity-history">
+        <div class="activity-history-scroll" role="region" aria-label="Cambios del diagrama" tabindex="0"><ol class="activity-history">
           @for (activity of activityHistory(); track activity.id) {
             <li><span aria-hidden="true">{{ activity.actorName.charAt(0) }}</span><p><strong>{{ activity.actorName }}</strong> {{ activity.action }}<small>{{ activityTimestamp(activity.createdAt) }}</small></p></li>
           }
-        </ol>
+        </ol></div>
       }
     </app-ui-dialog>
   }
@@ -574,6 +574,8 @@
     [isSubmitting]="isSubmitting()"
     [errorMessage]="assistantError()"
     [preview]="assistantPreview()"
+    [previewCommand]="assistantPreviewCommand()"
+    [resultMessage]="assistantResult()"
     (closed)="closeAssistantDialog()"
     (opened)="openAssistantDialog()"
     (commandRequested)="executeAssistantCommand($event)"
